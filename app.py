@@ -434,12 +434,13 @@ def signup_user(email, password, first_name, last_name, terms):
     return 'Signup successful! Please log in.'
 
 def authenticate_user(email, password):
+    # Checks if account exists
     conn = get_supabase_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
     user = cursor.fetchone()
     conn.close()
-    
+    # Checks against database
     if user:
         salted_password = password + user[0]
         if check_password_hash(user[4], salted_password):
@@ -521,25 +522,25 @@ def login():
     # Check if the user is already logged in
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-    
+    # Gets input from form
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
-        
+        # Checks wether the form is filled or not
         if not email or not password:
             flash("Email and password are required", "error")
             return redirect(url_for('login'))
-
+        # Validates if user exists or not
         user_data = authenticate_user(email, password)
         if user_data:
             user = User(user_data[0], user_data[1], user_data[2], user_data[3])
             login_user(user)
-            
+            # Checks if remember me is checked and if it is it creates a session
             remember = 'remember' in request.form
             if remember:
                 session.permanent = True
                 app.permanent_session_lifetime = timedelta(days=30)
-            
+            # Redirects to dashboard after successful login
             flash('Login successful!', 'success')
             return redirect(url_for('dashboard'))
         else:
