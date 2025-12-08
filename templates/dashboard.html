@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -39,52 +40,52 @@
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
+
         body {
             font-family: 'Inter', sans-serif;
         }
-        
+
         .sparkline {
             width: 100%;
             height: 30px;
         }
-        
+
         .tab-active {
             color: #5D5CDE;
             border-bottom: 2px solid #5D5CDE;
         }
-        
+
         .category-pill {
             transition: all 0.2s ease;
         }
-        
+
         .category-pill:hover {
             background-color: rgba(93, 92, 222, 0.2);
         }
-        
+
         .category-active {
             background-color: rgba(93, 92, 222, 0.1);
         }
-        
+
         .watchlist-star.active {
             color: #FFD700;
         }
-        
+
         /* Custom scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }
-        
+
         ::-webkit-scrollbar-track {
             background: transparent;
         }
-        
+
         ::-webkit-scrollbar-thumb {
             background: #555;
             border-radius: 3px;
         }
-        
+
         ::-webkit-scrollbar-thumb:hover {
             background: #888;
         }
@@ -94,43 +95,54 @@
             transition-duration: 200ms;
             padding: 0.5rem;
         }
+
         .nav-link:hover {
             color: rgb(17 24 39);
         }
+
         .dark .nav-link:hover {
             color: rgb(255 255 255);
         }
+
         .nav-link.active {
             color: rgb(93 92 222);
         }
+
         .watchlist-active {
             color: rgb(93 92 222);
         }
+
         .watchlist-button {
             padding: 0.5rem;
             color: rgb(156 163 175);
             transition-property: color;
             transition-duration: 200ms;
         }
+
         .watchlist-button svg {
             width: 1.25rem;
             height: 1.25rem;
         }
+
         .watchlist-button:hover {
             color: rgb(93 92 222);
         }
+
         .dark .watchlist-button:hover {
             color: rgb(93 92 222);
         }
+
         .time-button {
             font-size: 0.75rem;
             padding: 0.375rem 0.75rem;
             transition-property: color, background-color;
             transition-duration: 200ms;
         }
+
         .time-button:hover {
             color: rgb(93 92 222);
         }
+
         .time-active {
             color: rgb(93 92 222);
             background-color: rgba(93, 92, 222, 0.1);
@@ -138,6 +150,7 @@
         }
     </style>
 </head>
+
 <body class="dark:bg-darkbg bg-white text-gray-800 dark:text-white min-h-screen">
     <input type="hidden" id="user-id" data-user-id="{{ user_id }}">
     <div id="app" class="flex flex-col h-screen">
@@ -147,8 +160,10 @@
                 <!-- Left side with logo and balance -->
                 <div class="flex items-center space-x-4">
                     <div class="h-6 w-auto">
-                        <img src="{{ url_for('static', filename='images/Penguinnobg.png') }}" alt="Logo" class="h-full dark:hidden">
-                        <img src="{{ url_for('static', filename='images/whitenobg.png') }}" alt="Logo" class="h-full hidden dark:block">
+                        <img src="{{ url_for('static', filename='images/Penguinnobg.png') }}" alt="Logo"
+                            class="h-full dark:hidden">
+                        <img src="{{ url_for('static', filename='images/whitenobg.png') }}" alt="Logo"
+                            class="h-full hidden dark:block">
                     </div>
                     <div class="text-lg font-semibold">£<span id="balance">0.00</span></div>
                 </div>
@@ -157,12 +172,16 @@
                 <nav class="absolute left-1/2 transform -translate-x-1/2 flex items-center space-x-8">
                     <a href="#" class="nav-link text-gray-400 hover:text-gray-900 dark:hover:text-white">
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
+                            <path
+                                d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z">
+                            </path>
                         </svg>
                     </a>
                     <a href="#" class="nav-link text-gray-400 hover:text-gray-900 dark:hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                            </path>
                         </svg>
                     </a>
                     <a href="#" class="nav-link text-gray-400 hover:text-gray-900 dark:hover:text-white">
@@ -172,54 +191,64 @@
 
                 <!-- Right side with theme toggle -->
                 <div class="flex items-center space-x-4">
-                    <button id="theme-toggle" class="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
+                    <button id="theme-toggle"
+                        class="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+                            </path>
                         </svg>
                     </button>
                 </div>
             </div>
 
             <!-- Section navigation -->
-            <div class="flex items-center justify-between px-4 py-2 overflow-x-auto border-b dark:border-gray-700 border-gray-200">
+            <div
+                class="flex items-center justify-between px-4 py-2 overflow-x-auto border-b dark:border-gray-700 border-gray-200">
                 <div class="flex items-center space-x-6" id="watchlist-nav">
                     <!-- Watchlists will be dynamically inserted here -->
                 </div>
                 <div class="flex items-center space-x-2">
                     <button class="watchlist-button">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
+                            </path>
                         </svg>
                     </button>
                     <button class="watchlist-button">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                            </path>
                         </svg>
                     </button>
                 </div>
             </div>
         </header>
-        
+
         <!-- Main Content -->
         <div class="flex flex-1 overflow-hidden">
             <!-- Stock List -->
             <div class="w-full md:w-1/3 flex flex-col border-r dark:border-gray-700 border-gray-200">
                 <!-- Search Bar - Made sticky -->
-                <div class="sticky top-0 z-10 bg-white dark:bg-darkbg p-4 border-b dark:border-gray-700 border-gray-200">
+                <div
+                    class="sticky top-0 z-10 bg-white dark:bg-darkbg p-4 border-b dark:border-gray-700 border-gray-200">
                     <div class="relative">
-                        <input type="text" id="stock-search" placeholder="Search stocks..." class="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                        <div id="search-results" class="absolute w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg hidden z-50 max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700">
+                        <input type="text" id="stock-search" placeholder="Search stocks..."
+                            class="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                        <div id="search-results"
+                            class="absolute w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg hidden z-50 max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700">
                             <!-- Search results will be dynamically inserted here -->
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Stock List - Made scrollable -->
                 <div class="flex-1 overflow-y-auto">
                     <div id="stock-list" class="space-y-2 p-2"></div>
                 </div>
             </div>
-            
+
             <!-- Stock Detail -->
             <div id="stock-detail" class="hidden md:flex md:flex-1 flex-col">
                 <div class="p-4 flex flex-col h-full">
@@ -232,7 +261,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Buy/Sell Panel -->
                     <div class="mt-8 flex space-x-2">
                         <div class="w-1/2 p-4 bg-primary rounded-lg">
@@ -244,27 +273,38 @@
                             <div id="detail-buy-price" class="text-2xl text-white">Loading...</div>
                         </div>
                     </div>
-                    
+
                     <!-- Chart section -->
                     <div class="flex-1 flex flex-col">
-                        <div class="flex items-center justify-between p-4 border-b dark:border-gray-700 border-gray-200">
+                        <div
+                            class="flex items-center justify-between p-4 border-b dark:border-gray-700 border-gray-200">
                             <div class="flex items-center space-x-2">
-                                <button class="time-button time-active px-3 py-1 text-sm rounded-full bg-primary/10 dark:bg-primary/20 text-primary">1D</button>
-                                <button class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">1W</button>
-                                <button class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">1M</button>
-                                <button class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">3M</button>
-                                <button class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">1Y</button>
-                                <button class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">MAX</button>
+                                <button
+                                    class="time-button time-active px-3 py-1 text-sm rounded-full bg-primary/10 dark:bg-primary/20 text-primary">1D</button>
+                                <button
+                                    class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">1W</button>
+                                <button
+                                    class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">1M</button>
+                                <button
+                                    class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">3M</button>
+                                <button
+                                    class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">1Y</button>
+                                <button
+                                    class="time-button px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">MAX</button>
                             </div>
                             <div class="flex items-center space-x-2">
-                                <button id="chart-type-toggle" class="px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                                <button id="chart-type-toggle"
+                                    class="px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
                                     </svg>
                                 </button>
-                                <button id="fullscreen-toggle" class="px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                                <button id="fullscreen-toggle"
+                                    class="px-3 py-1 text-sm rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                                     </svg>
                                 </button>
                             </div>
@@ -276,80 +316,103 @@
         </div>
     </div>
 
-    <script>
-        // Global fallback data
-        window.fallbackStocks = [
-            {symbol: 'AAPL', name: 'Apple Inc.', price: 185.56, change: 1.23, changePercent: 0.67, isPositive: true, logoUrl: 'https://logo.clearbit.com/apple.com'},
-            {symbol: 'MSFT', name: 'Microsoft Corporation', price: 413.64, change: 0.86, changePercent: 0.21, isPositive: true, logoUrl: 'https://logo.clearbit.com/microsoft.com'},
-            {symbol: 'GOOGL', name: 'Alphabet Inc.', price: 165.92, change: -0.58, changePercent: -0.35, isPositive: false, logoUrl: 'https://logo.clearbit.com/google.com'},
-            {symbol: 'AMZN', name: 'Amazon.com Inc.', price: 178.62, change: 2.45, changePercent: 1.39, isPositive: true, logoUrl: 'https://logo.clearbit.com/amazon.com'},
-            {symbol: 'META', name: 'Meta Platforms Inc.', price: 492.15, change: 3.78, changePercent: 0.77, isPositive: true, logoUrl: 'https://logo.clearbit.com/meta.com'},
-            {symbol: 'TSLA', name: 'Tesla Inc.', price: 172.82, change: -6.13, changePercent: -3.43, isPositive: false, logoUrl: 'https://logo.clearbit.com/tesla.com'},
-            {symbol: 'NVDA', name: 'NVIDIA Corporation', price: 887.90, change: 12.35, changePercent: 1.41, isPositive: true, logoUrl: 'https://logo.clearbit.com/nvidia.com'},
-            {symbol: 'BRK.B', name: 'Berkshire Hathaway Inc.', price: 435.36, change: 1.15, changePercent: 0.27, isPositive: true, logoUrl: 'https://logo.clearbit.com/berkshirehathaway.com'},
-            {symbol: 'JPM', name: 'JPMorgan Chase & Co.', price: 197.53, change: -0.82, changePercent: -0.41, isPositive: false, logoUrl: 'https://logo.clearbit.com/jpmorganchase.com'},
-            {symbol: 'V', name: 'Visa Inc.', price: 277.38, change: 0.91, changePercent: 0.33, isPositive: true, logoUrl: 'https://logo.clearbit.com/visa.com'}
-        ];
-        
-        window.fallbackWatchlists = [
-            { watchlist_id: 'default-stocks', watchlist_name: 'Top Stocks' },
-            { watchlist_id: 'tech-stocks', watchlist_name: 'Tech' },
-            { watchlist_id: 'finance-stocks', watchlist_name: 'Finance' }
-        ];
-    </script>
 
     <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-        // Function to load watchlist items
-        async function loadWatchlistItems(watchlistId) {
-            try {
-                console.log('Loading watchlist items for:', watchlistId);
-                
-                // Set a timeout for the fetch request
-                const timeoutDuration = 5000; // 5 seconds
-                
-                // Create a promise that rejects after the timeout
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Request timed out')), timeoutDuration)
-                );
-                
-                // Race the fetch against the timeout
-                const response = await Promise.race([
-                    fetch(`/api/watchlist/${watchlistId}`),
-                    timeoutPromise
-                ]);
-                
-                const data = await response.json();
-                console.log('Watchlist items data:', data);
-                
-                if (data.error) {
-                    console.error('Error loading watchlist:', data.error);
-                    throw new Error(data.error);
+        // Function to show stock details
+        function showStockDetail(stock) {
+            console.log('Showing details for:', stock);
+            const detailSection = document.getElementById('stock-detail');
+            if (detailSection) {
+                detailSection.classList.remove('hidden');
+                detailSection.classList.add('md:flex');
+
+                // Update stock details
+                const nameEl = document.getElementById('detail-name');
+                if (nameEl) nameEl.textContent = stock.name;
+
+                const symbolEl = document.getElementById('detail-symbol');
+                if (symbolEl) symbolEl.textContent = stock.symbol;
+
+                const changeEl = document.getElementById('detail-change');
+                if (changeEl) {
+                    const change = stock.change || 0;
+                    const changePercent = stock.changePercent || 0;
+                    const isPositive = stock.isPositive !== undefined ? stock.isPositive : (change >= 0);
+
+                    changeEl.textContent = `${isPositive ? '+' : ''}${change.toFixed(2)} (${changePercent.toFixed(2)}%)`;
+                    changeEl.className = isPositive ? 'text-positive' : 'text-negative';
                 }
-                
+
+                const price = stock.price || 0;
+                const sellEl = document.getElementById('detail-sell-price');
+                if (sellEl) sellEl.textContent = `$${price.toFixed(2)}`;
+
+                const buyEl = document.getElementById('detail-buy-price');
+                if (buyEl) buyEl.textContent = `$${price.toFixed(2)}`;
+
+                // Update chart if available
+                if (window.updateChart) {
+                    window.updateChart(stock.symbol);
+                }
+            }
+        }
+
+        // Function to load watchlist items
+        async function loadWatchlistItems() {
+            try {
+                console.log('Loading stocks from API...');
+
+                // Fetch directly from /api/stocks
+                const response = await fetch('/api/stocks');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Stocks data:', data);
+
+                // Populate global variable for search
+                window.allStocks = data.map(item => {
+                    const price = typeof item.price === 'number' ? item.price : 150.00;
+                    const change = typeof item.change === 'number' ? item.change : 1.50;
+                    const changePercent = typeof item.changePercent === 'number' ? item.changePercent : 1.00;
+                    const isPositive = typeof item.isPositive === 'boolean' ? item.isPositive : change >= 0;
+
+                    return {
+                        ...item,
+                        price,
+                        change,
+                        changePercent,
+                        isPositive,
+                        logoUrl: item.logoUrl || item.logo_url || ''
+                    };
+                });
+
                 // Update the search input placeholder
                 const searchInput = document.getElementById('stock-search');
                 if (searchInput) {
-                    searchInput.placeholder = `Search in ${data.watchlist_name}...`;
+                    searchInput.placeholder = 'Search stocks...';
                 }
-                
+
                 // Update the stock list
                 const stockList = document.getElementById('stock-list');
                 if (stockList) {
                     stockList.innerHTML = ''; // Clear the list
-                    
-                    if (data.items && data.items.length > 0) {
-                        data.items.forEach(item => {
+
+                    if (Array.isArray(window.allStocks) && window.allStocks.length > 0) {
+                        window.allStocks.forEach(item => {
                             const div = document.createElement('div');
                             div.className = 'p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b dark:border-gray-700 border-gray-200';
                             div.setAttribute('data-symbol', item.symbol);
-                            
+
                             div.innerHTML = `
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-3">
                                         <div class="w-8 h-8 flex-shrink-0">
-                                            <img src="${item.logoUrl}" alt="${item.name} logo" class="w-full h-full object-contain">
+                                            <img src="${item.logoUrl}" alt="${item.name} logo" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/32'">
                                         </div>
                                         <div>
                                             <div class="font-medium">${item.name}</div>
@@ -364,537 +427,95 @@
                                     </div>
                                 </div>
                             `;
-                            
+
                             div.addEventListener('click', () => {
                                 // Remove active class from all items
-                                document.querySelectorAll('#stock-list > div').forEach(item => {
-                                    item.classList.remove('bg-primary/10', 'dark:bg-primary/20');
+                                document.querySelectorAll('#stock-list > div').forEach(divItem => {
+                                    divItem.classList.remove('bg-primary/10', 'dark:bg-primary/20');
                                 });
-                                
+
                                 // Add active class to clicked item
                                 div.classList.add('bg-primary/10', 'dark:bg-primary/20');
-                                
+
                                 // Show stock details
                                 showStockDetail(item);
                             });
-                            
+
                             stockList.appendChild(div);
                         });
+
+                        // Show first stock details by default if available
+                        if (window.allStocks.length > 0) {
+                            showStockDetail(window.allStocks[0]);
+                        }
                     } else {
                         stockList.innerHTML = `
                             <div class="p-4 text-center text-gray-500">
-                                ${data.message || 'No items in this watchlist'}
+                                No stocks found in stocks.json
                             </div>
                         `;
                     }
                 }
             } catch (error) {
-                console.error('Error loading watchlist:', error);
-                
-                // Try to load from static JSON file instead
-                try {
-                    console.log('Attempting to load from static JSON file');
-                    if (watchlistId.startsWith('default-')) {
-                        const staticResponse = await fetch(`/api/static/default-list/${watchlistId}`);
-                        const staticData = await staticResponse.json();
-                        
-                        // Update the search input placeholder
-                        const searchInput = document.getElementById('stock-search');
-                        if (searchInput) {
-                            searchInput.placeholder = `Search in ${staticData.watchlist_name}...`;
-                        }
-                        
-                        // Update the stock list with static data (no live prices)
-                        const stockList = document.getElementById('stock-list');
-                        if (stockList && staticData.items) {
-                            stockList.innerHTML = ''; // Clear the list
-                            
-                            // Get cached price data or use placeholder values
-                            staticData.items.forEach(item => {
-                                // Add placeholder price data
-                                const itemWithPrice = {
-                                    ...item,
-                                    price: 0.00,  // Placeholder
-                                    change: 0.00, // Placeholder
-                                    changePercent: 0.00, // Placeholder
-                                    isPositive: true // Default
-                                };
-                                
-                                const div = document.createElement('div');
-                                div.className = 'p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b dark:border-gray-700 border-gray-200';
-                                div.setAttribute('data-symbol', item.symbol);
-                                
-                                div.innerHTML = `
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="w-8 h-8 flex-shrink-0">
-                                                <img src="${item.logoUrl}" alt="${item.name} logo" class="w-full h-full object-contain">
-                                            </div>
-                                            <div>
-                                                <div class="font-medium">${item.name}</div>
-                                                <div class="text-sm text-gray-400">${item.symbol}</div>
-                                            </div>
-                                        </div>
-                                        <div class="text-right">
-                                            <div class="font-semibold">Loading...</div>
-                                            <div class="text-xs">Loading price data...</div>
-                                        </div>
-                                    </div>
-                                `;
-                                
-                                div.addEventListener('click', () => {
-                                    // Remove active class from all items
-                                    document.querySelectorAll('#stock-list > div').forEach(item => {
-                                        item.classList.remove('bg-primary/10', 'dark:bg-primary/20');
-                                    });
-                                    
-                                    // Add active class to clicked item
-                                    div.classList.add('bg-primary/10', 'dark:bg-primary/20');
-                                    
-                                    // Show stock details
-                                    showStockDetail(itemWithPrice);
-                                });
-                                
-                                stockList.appendChild(div);
-                                
-                                // Try to fetch live price data for each item
-                                fetch(`/api/stock/${item.symbol}`)
-                                    .then(response => response.json())
-                                    .then(quoteData => {
-                                        if (!quoteData.error && quoteData['Global Quote']) {
-                                            const quote = quoteData['Global Quote'];
-                                            const price = parseFloat(quote['05. price']);
-                                            const change = parseFloat(quote['09. change']);
-                                            const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
-                                            
-                                            // Update the price display
-                                            const priceDiv = div.querySelector('.text-right');
-                                            if (priceDiv) {
-                                                priceDiv.innerHTML = `
-                                                    <div class="font-semibold">$${price.toFixed(2)}</div>
-                                                    <div class="text-xs ${change >= 0 ? 'text-positive' : 'text-negative'}">
-                                                        ${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent.toFixed(2)}%)
-                                                    </div>
-                                                `;
-                                            }
-                                            
-                                            // Update the item data for detail view
-                                            itemWithPrice.price = price;
-                                            itemWithPrice.change = change;
-                                            itemWithPrice.changePercent = changePercent;
-                                            itemWithPrice.isPositive = change >= 0;
-                                        }
-                                    })
-                                    .catch(err => console.error(`Error fetching price for ${item.symbol}:`, err));
-                            });
-                            
-                            return; // Exit after successfully showing static data
-                        }
-                    }
-                    
-                    // If we got here, loading from static file also failed, use fallback data
-                    throw new Error('Could not load from static JSON file');
-                    
-                } catch (staticError) {
-                    console.error('Error loading from static JSON:', staticError);
-                    
-                    // Use fallback data if all requests failed
-                const fallbackStocks = window.fallbackStocks;
-                
-                    console.log('Using hardcoded fallback stock data');
-                
-                // Update the stock list with fallback data
+                console.error('Error loading stocks:', error);
                 const stockList = document.getElementById('stock-list');
                 if (stockList) {
-                    stockList.innerHTML = ''; // Clear the list
-                    
-                    fallbackStocks.forEach(item => {
-                        const div = document.createElement('div');
-                        div.className = 'p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b dark:border-gray-700 border-gray-200';
-                        div.setAttribute('data-symbol', item.symbol);
-                        
-                        div.innerHTML = `
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 flex-shrink-0">
-                                        <img src="${item.logoUrl}" alt="${item.name} logo" class="w-full h-full object-contain">
-                                    </div>
-                                    <div>
-                                        <div class="font-medium">${item.name}</div>
-                                        <div class="text-sm text-gray-400">${item.symbol}</div>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="font-semibold">$${item.price.toFixed(2)}</div>
-                                    <div class="text-xs ${item.isPositive ? 'text-positive' : 'text-negative'}">
-                                        ${item.isPositive ? '+' : ''}${item.change.toFixed(2)} (${item.changePercent.toFixed(2)}%)
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        
-                        div.addEventListener('click', () => {
-                            // Remove active class from all items
-                            document.querySelectorAll('#stock-list > div').forEach(item => {
-                                item.classList.remove('bg-primary/10', 'dark:bg-primary/20');
-                            });
-                            
-                            // Add active class to clicked item
-                            div.classList.add('bg-primary/10', 'dark:bg-primary/20');
-                            
-                            // Show stock details
-                            showStockDetail(item);
-                        });
-                        
-                        stockList.appendChild(div);
-                    });
-                    
-                    // Show the first stock by default
-                    if (fallbackStocks.length > 0) {
-                        showStockDetail(fallbackStocks[0]);
-                    }
-                }
-                
-                // Update search input placeholder
-                const searchInput = document.getElementById('stock-search');
-                if (searchInput) {
-                    searchInput.placeholder = 'Search in Stocks...';
-                    }
-                }
-            }
-        }
-
-        // Function to show stock details
-        function showStockDetail(stock) {
-            const detailSection = document.getElementById('stock-detail');
-            if (detailSection) {
-                detailSection.classList.remove('hidden');
-                
-                // Update stock details
-                document.getElementById('detail-name').textContent = stock.name;
-                document.getElementById('detail-symbol').textContent = stock.symbol;
-                document.getElementById('detail-change').textContent = 
-                    `${stock.isPositive ? '+' : ''}${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)`;
-                document.getElementById('detail-sell-price').textContent = `$${stock.price.toFixed(2)}`;
-                document.getElementById('detail-buy-price').textContent = `$${stock.price.toFixed(2)}`;
-            }
-        }
-
-        // Load watchlists
-        try {
-            console.log('Fetching watchlists for user:', '{{ user_id }}');
-            
-            // Set a timeout for the fetch request
-            const timeoutDuration = 5000; // 5 seconds
-            
-            // Create a promise that rejects after the timeout
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Request timed out')), timeoutDuration)
-            );
-            
-            // Race the fetch against the timeout
-            const response = await Promise.race([
-                fetch(`/api/watchlists/{{ user_id }}`),
-                timeoutPromise
-            ]);
-            
-            const watchlists = await response.json();
-            console.log('Received watchlists:', watchlists);
-            
-            if (watchlists.error) {
-                console.error('Error loading watchlists:', watchlists.error);
-                throw new Error(watchlists.error);
-            }
-            
-            const watchlistNav = document.getElementById('watchlist-nav');
-            console.log('Watchlist nav element:', watchlistNav);
-            
-            if (watchlistNav) {
-                watchlistNav.innerHTML = '';
-                
-                if (!watchlists || watchlists.length === 0) {
-                    console.log('No watchlists found');
-                    throw new Error('No watchlists found');
-                }
-                
-                watchlists.forEach(watchlist => {
-                    console.log('Creating link for watchlist:', watchlist);
-                    const link = document.createElement('a');
-                    link.href = `/dashboard?list=${watchlist.watchlist_id}`;
-                    link.className = 'flex items-center space-x-2 text-sm font-medium text-gray-400 hover:text-gray-900 dark:hover:text-white whitespace-nowrap';
-                    
-                    link.innerHTML = `
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                        </svg>
-                        <span>${watchlist.watchlist_name}</span>
+                    stockList.innerHTML = `
+                        <div class="p-4 text-center text-red-500">
+                            Error loading stocks: ${error.message}
+                        </div>
                     `;
-                    
-                    // Add click event listener
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        loadWatchlistItems(watchlist.watchlist_id);
-                        
-                        // Update active state
-                        document.querySelectorAll('#watchlist-nav a').forEach(l => {
-                            l.classList.remove('text-primary');
-                        });
-                        link.classList.add('text-primary');
-                    });
-                    
-                    watchlistNav.appendChild(link);
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWatchlistItems();
+
+            // Theme toggle functionality
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    document.documentElement.classList.toggle('dark');
                 });
-                
-                // Load initial watchlist based on URL parameter or default
-                const urlParams = new URLSearchParams(window.location.search);
-                const listType = urlParams.get('list') || 'my-watchlist';
-                console.log('Initial list type:', listType);
-                
-                const initialWatchlist = watchlists.find(w => w.watchlist_id === listType) || watchlists[0];
-                console.log('Initial watchlist:', initialWatchlist);
-                
-                if (initialWatchlist) {
-                    loadWatchlistItems(initialWatchlist.watchlist_id);
-                    const activeLink = document.querySelector(`#watchlist-nav a[href="/dashboard?list=${initialWatchlist.watchlist_id}"]`);
-                    if (activeLink) {
-                        activeLink.classList.add('text-primary');
-                    }
-                }
-            } else {
-                console.error('Watchlist nav element not found');
             }
-        } catch (error) {
-            console.error('Error loading watchlists:', error);
-            
-            // Try to load static default lists
-            try {
-                const staticResponse = await fetch('/api/static/default-lists');
-                const staticWatchlists = await staticResponse.json();
-                
-                console.log('Loaded static default lists:', staticWatchlists);
-                
-                // Create watchlist navigation with static data
-                const watchlistNav = document.getElementById('watchlist-nav');
-                if (watchlistNav) {
-                    watchlistNav.innerHTML = '';
-                    
-                    staticWatchlists.forEach(watchlist => {
-                        const link = document.createElement('a');
-                        link.href = `/dashboard?list=${watchlist.watchlist_id}`;
-                        link.className = 'flex items-center space-x-2 text-sm font-medium text-gray-400 hover:text-gray-900 dark:hover:text-white whitespace-nowrap';
-                        
-                        link.innerHTML = `
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                            </svg>
-                            <span>${watchlist.watchlist_name}</span>
-                        `;
-                        
-                        // Add click event listener
-                        link.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            loadWatchlistItems(watchlist.watchlist_id);
-                            
-                            // Update active state
-                            document.querySelectorAll('#watchlist-nav a').forEach(l => {
-                                l.classList.remove('text-primary');
-                            });
-                            link.classList.add('text-primary');
-                        });
-                        
-                        watchlistNav.appendChild(link);
-                    });
-                    
-                    // Load first watchlist by default
-                    if (staticWatchlists.length > 0) {
-                        loadWatchlistItems(staticWatchlists[0].watchlist_id);
-                        const firstLink = watchlistNav.querySelector('a');
-                        if (firstLink) {
-                            firstLink.classList.add('text-primary');
-                        }
-                    }
-                    
-                    return; // Exit if static lists loaded successfully
-                }
-            } catch (staticError) {
-                console.error('Error loading static default lists:', staticError);
-            }
-            
-            // Fallback watchlists
-            const fallbackWatchlists = window.fallbackWatchlists;
-            
-            // Create fallback watchlist navigation
-            const watchlistNav = document.getElementById('watchlist-nav');
-            if (watchlistNav) {
-                watchlistNav.innerHTML = '';
-                
-                fallbackWatchlists.forEach(watchlist => {
-                    const link = document.createElement('a');
-                    link.href = `/dashboard?list=${watchlist.watchlist_id}`;
-                    link.className = 'flex items-center space-x-2 text-sm font-medium text-gray-400 hover:text-gray-900 dark:hover:text-white whitespace-nowrap';
-                    
-                    link.innerHTML = `
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                        </svg>
-                        <span>${watchlist.watchlist_name}</span>
-                    `;
-                    
-                    // Add click event listener
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        
-                        // Update active state
-                        document.querySelectorAll('#watchlist-nav a').forEach(l => {
-                            l.classList.remove('text-primary');
-                        });
-                        link.classList.add('text-primary');
-                        
-                        // Load fallback stocks
-                        loadWatchlistItems('default-stocks');
-                    });
-                    
-                    watchlistNav.appendChild(link);
-                });
-                
-                // Activate the first watchlist
-                const firstLink = watchlistNav.querySelector('a');
-                if (firstLink) {
-                    firstLink.classList.add('text-primary');
-                }
-                
-                // Load fallback stocks
-                loadWatchlistItems('default-stocks');
-            }
-        }
 
-        // Theme toggle functionality
-        const themeToggle = document.getElementById('theme-toggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                document.documentElement.classList.toggle('dark');
-            });
-        }
-
-        // Watchlist buttons functionality
-        const createWatchlistBtn = document.querySelector('.watchlist-button:first-of-type');
-        const editWatchlistBtn = document.querySelector('.watchlist-button:last-of-type');
-
-        if (createWatchlistBtn) {
-            createWatchlistBtn.addEventListener('click', () => {
-                console.log('Create watchlist clicked');
-            });
-        }
-
-        if (editWatchlistBtn) {
-            editWatchlistBtn.addEventListener('click', () => {
-                console.log('Edit watchlist clicked');
-            });
-        }
-    });
-    </script>
-
-    <script>
-        // Add direct event listener to search input once DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM fully loaded');
+            // Search functionality
             const searchInput = document.getElementById('stock-search');
             const searchResults = document.getElementById('search-results');
-            
-            // Initialize global array to store all loaded stocks for search
-            window.allStocks = [];
-            
-            // Function to collect stocks from the stock list
-            function collectStocks() {
-                const stockItems = document.querySelectorAll('#stock-list > div[data-symbol]');
-                window.allStocks = [];
-                
-                stockItems.forEach(item => {
-                    const symbol = item.getAttribute('data-symbol');
-                    const nameEl = item.querySelector('.font-medium');
-                    const priceEl = item.querySelector('.font-semibold');
-                    const changeEl = item.querySelector('.text-xs');
-                    const logoEl = item.querySelector('img');
-                    
-                    if (symbol && nameEl) {
-                        const isPositive = changeEl && changeEl.classList.contains('text-positive');
-                        const priceText = priceEl ? priceEl.textContent.replace('$', '') : '0.00';
-                        const changeText = changeEl ? changeEl.textContent.trim() : '+0.00 (0.00%)';
-                        
-                        // Extract change and changePercent from text like "+1.23 (4.56%)"
-                        let change = 0;
-                        let changePercent = 0;
-                        
-                        if (changeText) {
-                            const match = changeText.match(/([+-]?\d+\.\d+)\s+\(([+-]?\d+\.\d+)%\)/);
-                            if (match) {
-                                change = parseFloat(match[1]);
-                                changePercent = parseFloat(match[2]);
-                            }
-                        }
-                        
-                        window.allStocks.push({
-                            symbol: symbol,
-                            name: nameEl.textContent,
-                            price: parseFloat(priceText),
-                            change: change,
-                            changePercent: changePercent,
-                            isPositive: isPositive,
-                            logoUrl: logoEl ? logoEl.src : ''
-                        });
-                    }
-                });
-                
-                console.log('Collected stocks for search:', window.allStocks.length);
-                
-                // If no stocks were found, use the fallback data
-                if (window.allStocks.length === 0) {
-                    window.allStocks = window.fallbackStocks;
-                    console.log('Using fallback stock data');
+
+            // Function to search stocks
+            function searchStocks(query) {
+                if (!window.allStocks || window.allStocks.length === 0) {
+                    console.log('No stocks available for search');
+                    return [];
                 }
+
+                const lowerQuery = query.toLowerCase();
+                return window.allStocks.filter(stock =>
+                    stock.symbol.toLowerCase().includes(lowerQuery) ||
+                    stock.name.toLowerCase().includes(lowerQuery)
+                );
             }
-            
-            // Watch for changes to the stock list
-            const stockList = document.getElementById('stock-list');
-            if (stockList) {
-                // Use MutationObserver to detect when stocks are loaded
-                const observer = new MutationObserver(function(mutations) {
-                    collectStocks();
-                });
-                
-                observer.observe(stockList, { childList: true, subtree: true });
-                
-                // Also collect on initial load and set a timeout to use fallback if API is slow
-                setTimeout(collectStocks, 1000);
-                
-                // Use fallback data immediately for search until real data loads
-                window.allStocks = window.fallbackStocks;
-            }
-            
+
             if (searchInput) {
                 console.log('Search input found, adding event listener');
-                
-                // Add a simple test click event to ensure JavaScript is working
-                searchInput.addEventListener('click', function() {
-                    console.log('Search input clicked');
-                });
-                
+
                 let searchTimeout;
-                searchInput.addEventListener('input', function(e) {
-                    console.log('Search input event fired:', e.target.value);
+                searchInput.addEventListener('input', function (e) {
                     clearTimeout(searchTimeout);
-                    
+
                     const query = e.target.value.trim();
                     if (query.length < 2) {
                         if (searchResults) searchResults.classList.add('hidden');
                         return;
                     }
-                    
+
                     searchTimeout = setTimeout(() => {
                         if (searchResults) {
                             // Search in the collected stocks
                             const results = searchStocks(query);
-                            
+
                             if (results.length === 0) {
                                 searchResults.innerHTML = '<div class="p-4 text-gray-500">No results found</div>';
                             } else {
@@ -920,78 +541,46 @@
                                     </div>
                                 `).join('');
                             }
-                            
+
                             searchResults.classList.remove('hidden');
-                            console.log('Search results displayed:', results.length);
-                        } else {
-                            console.log('Search results element not found');
                         }
                     }, 300);
                 });
-                
+
                 // Close search results when clicking outside
-                document.addEventListener('click', function(e) {
+                document.addEventListener('click', function (e) {
                     if (searchResults && !searchInput.contains(e.target) && !searchResults.contains(e.target)) {
                         searchResults.classList.add('hidden');
                     }
                 });
-            } else {
-                console.error('Search input element not found!');
-                // List all input elements to help debug
-                const allInputs = document.querySelectorAll('input');
-                console.log('All input elements:', allInputs.length);
-                allInputs.forEach((input, i) => {
-                    console.log(`Input ${i}:`, input.id, input);
-                });
             }
-            
-            // Function to search stocks
-            function searchStocks(query) {
-                if (!window.allStocks || window.allStocks.length === 0) {
-                    console.log('No stocks available for search');
-                    return [];
-                }
-                
-                const lowerQuery = query.toLowerCase();
-                return window.allStocks.filter(stock => 
-                    stock.symbol.toLowerCase().includes(lowerQuery) || 
-                    stock.name.toLowerCase().includes(lowerQuery)
-                );
-            }
-            
+
             // Make the selectStock function available globally
-            window.selectStock = function(symbol) {
+            window.selectStock = function (symbol) {
                 console.log('Selecting stock:', symbol);
                 const stockElement = document.querySelector(`#stock-list div[data-symbol="${symbol}"]`);
-                
+
                 if (stockElement) {
-                    // Programmatically trigger the click event on the stock element
                     stockElement.click();
-                    
-                    // Also highlight it visually
                     document.querySelectorAll('#stock-list > div').forEach(item => {
                         item.classList.remove('bg-primary/10', 'dark:bg-primary/20');
                     });
                     stockElement.classList.add('bg-primary/10', 'dark:bg-primary/20');
-                    
-                    // Scroll to the selected stock
                     stockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 } else {
                     console.log('Stock element not found for symbol:', symbol);
-                    // You could implement a fallback here to show the stock even if it's not in the list
+                    // If not in list, find in window.allStocks and show details directly
+                    const stock = window.allStocks.find(s => s.symbol === symbol);
+                    if (stock) {
+                        showStockDetail(stock);
+                    }
                 }
-                
-                // Hide search results
-                if (searchResults) {
-                    searchResults.classList.add('hidden');
-                }
-                
-                // Clear search input
-                if (searchInput) {
-                    searchInput.value = '';
-                }
+
+                if (searchResults) searchResults.classList.add('hidden');
+                if (searchInput) searchInput.value = '';
             };
         });
     </script>
 </body>
+
 </html>

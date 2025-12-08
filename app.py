@@ -3,6 +3,7 @@ import psycopg2
 from flask import Flask, jsonify, render_template, request, redirect, url_for, flash, make_response, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_cors import CORS, cross_origin
 import uuid
 import random
 import requests
@@ -18,6 +19,8 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
+# Enable CORS for all routes (or restrict as needed)
+CORS(app)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "Jacques")
 
 # Initialize Flask-Login
@@ -339,3 +342,19 @@ def homepage():
 @app.route('/terms')
 def terms():
     return render_template('terms.html')
+
+@app.route('/api/stocks')
+@cross_origin()
+def get_stocks():
+    try:
+        # Construct the absolute path to stocks.json
+        json_path = os.path.join(app.root_path, 'stocks.json')
+        
+        # Open and read the JSON file
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+            
+        return jsonify(data)
+    except Exception as e:
+        print(f"Error loading stocks.json: {e}")
+        return jsonify({"error": "Failed to load stock data"}), 500

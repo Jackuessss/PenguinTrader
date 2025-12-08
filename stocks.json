@@ -1,0 +1,44 @@
+[
+    {
+        "symbol": "AAPL",
+        "name": "Apple Inc",
+        "sector": "Technology",
+        "logo_url": "https://logo.clearbit.com/apple.com"
+    },
+    {
+        "symbol": "TSLA",
+        "name": "Tesla Inc",
+        "sector": "Automotive",
+        "logo_url": "https://logo.clearbit.com/tesla.com"
+    },
+    {
+        "symbol": "MSFT",
+        "name": "Microsoft Corp",
+        "sector": "Technology",
+        "logo_url": "https://logo.clearbit.com/microsoft.com"
+    },
+    {
+        "symbol": "AMZN",
+        "name": "Amazon.com Inc",
+        "sector": "Technology",
+        "logo_url": "https://logo.clearbit.com/amazon.com"
+    },
+    {
+        "symbol": "GOOGL",
+        "name": "Alphabet Inc",
+        "sector": "Technology",
+        "logo_url": "https://logo.clearbit.com/google.com"
+    },
+    {
+        "symbol": "KO",
+        "name": "Coca-Cola Co",
+        "sector": "Consumer Defensive",
+        "logo_url": "https://logo.clearbit.com/coca-colacompany.com"
+    },
+    {
+        "symbol": "JPM",
+        "name": "JPMorgan Chase & Co",
+        "sector": "Financial Services",
+        "logo_url": "https://logo.clearbit.com/jpmorganchase.com"
+    }
+]

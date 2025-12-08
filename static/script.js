@@ -1,5 +1,7 @@
 // Alpha Vantage API key
+// Alpha Vantage API key
 const API_KEY = 'LA9DKLX13DQCKHV3'; // Replace with your Alpha Vantage API key
+const BACKEND_URL = 'https://penguin-trader-render-backend.onrender.com';
 
 // Theme toggle functionality
 const themeToggle = document.getElementById('theme-toggle');
@@ -43,6 +45,8 @@ if (watchlistHeader) {
     watchlistHeader.innerHTML = `<span id="watchlist-name">Stocks</span>`;
 }
 
+// Global watchlist variable
+let watchlist = new Set();
 
 // Initialize search functionality
 console.log('Setting up search functionality');
@@ -180,18 +184,71 @@ window.selectStock = function (symbol) {
     }
 };
 
-// Load watchlist from server
-const { watchlist: initialWatchlist, watchlistId } = await loadWatchlist();
-watchlist = initialWatchlist;
 
-// Update the section title to "Stocks"
-const watchlistNameEl = document.getElementById('watchlist-name');
-if (watchlistNameEl) {
-    watchlistNameEl.textContent = 'Stocks';
+
+// Helper to render the list
+function renderStockList(stocks) {
+    const stockListEl = document.getElementById('stock-list');
+    if (!stockListEl) return;
+
+    stockListEl.innerHTML = '';
+
+    if (stocks.length === 0) {
+        stockListEl.innerHTML = '<div class="p-4 text-center text-gray-500">No stocks found</div>';
+        return;
+    }
+
+    stocks.forEach(stock => {
+        const div = document.createElement('div');
+        div.className = 'p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b dark:border-gray-700 border-gray-200';
+        div.setAttribute('data-symbol', stock.symbol);
+
+        div.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 flex-shrink-0">
+                        <img src="${stock.logo_url}" alt="${stock.name} logo" class="w-full h-full object-contain" onerror="this.src='https://placehold.co/32'">
+                    </div>
+                    <div>
+                        <div class="font-medium">${stock.name}</div>
+                        <div class="text-sm text-gray-400">${stock.symbol}</div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="font-semibold">$${(stock.price || 0).toFixed(2)}</div>
+                    <div class="text-xs text-positive">
+                        +0.00%
+                    </div>
+                </div>
+            </div>
+        `;
+
+        div.addEventListener('click', () => {
+            console.log(`Selected: ${stock.symbol}`);
+
+            // Visual feedback
+            document.querySelectorAll('#stock-list > div').forEach(item => {
+                item.classList.remove('bg-primary/10', 'dark:bg-primary/20');
+            });
+            div.classList.add('bg-primary/10', 'dark:bg-primary/20');
+
+            // Update details view
+            showStockDetail(stock);
+        });
+
+        stockListEl.appendChild(div);
+    });
 }
 
-// Initialize real-time updates
-initializeRealTimeUpdates();
+// Call init on load
+document.addEventListener('DOMContentLoaded', () => {
+    initWatchlist();
+
+    // Initialize real-time updates if available
+    if (typeof initializeRealTimeUpdates === 'function') {
+        initializeRealTimeUpdates();
+    }
+});
 
 // Set up watchlist toggle with animation
 const watchlistButton = document.querySelector('.watchlist-star');
@@ -307,7 +364,7 @@ function switchToForex() {
 
     // Update forex prices
     defaultForexPairs.forEach(pair => {
-        fetch(`/api/forex/${pair.symbol.replace('/', '')}`)
+        fetch(`${BACKEND_URL}/api/forex/${pair.symbol.replace('/', '')}`)
             .then(response => response.json())
             .then(data => {
                 const li = forexList.querySelector(`[data-symbol="${pair.symbol}"]`);
@@ -353,7 +410,7 @@ function updateForexChart(symbol) {
     const chart = document.querySelector('#stock-chart');
     chart.innerHTML = '<div class="text-gray-400">Loading chart data...</div>';
 
-    fetch(`/api/forex/history/${symbol.replace('/', '')}`)
+    fetch(`${BACKEND_URL}/api/forex/history/${symbol.replace('/', '')}`)
         .then(response => response.json())
         .then(data => {
             const trace = {
@@ -557,160 +614,158 @@ document.addEventListener('DOMContentLoaded', () => {
             await switchWatchlist(watchlistId);
         });
     });
-});
-});
 
-/**
- * In a full application, the following functions would be implemented to fetch data from Alpha Vantage API
- */
+    /**
+     * In a full application, the following functions would be implemented to fetch data from Alpha Vantage API
+     */
 
-// Function to show error message
-function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-    errorDiv.textContent = message;
-    document.body.appendChild(errorDiv);
+    // Function to show error message
+    function showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
 
-    setTimeout(() => {
-        errorDiv.remove();
-    }, 5000);
-}
+        setTimeout(() => {
+            errorDiv.remove();
+        }, 5000);
+    }
 
-// Function to fetch stock price with better error handling
-async function fetchStockPrice(symbol) {
-    try {
-        const response = await fetch(`/api/stock/${symbol}`);
-        const data = await response.json();
+    // Function to fetch stock price with better error handling
+    async function fetchStockPrice(symbol) {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/stock/${symbol}`);
+            const data = await response.json();
 
-        if (data.error) {
-            if (data.error.includes('API rate limit')) {
-                showError('API rate limit reached. Please try again in a few minutes.');
-            } else {
+            if (data.error) {
+                if (data.error.includes('API rate limit')) {
+                    showError('API rate limit reached. Please try again in a few minutes.');
+                } else {
+                    showError(data.error);
+                }
+                return null;
+            }
+
+            const quote = data['Global Quote'];
+            if (!quote) {
+                showError('No data available for this stock');
+                return null;
+            }
+
+            const price = parseFloat(quote['05. price']);
+            const change = parseFloat(quote['09. change']);
+            const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
+
+            return {
+                price,
+                change,
+                changePercent,
+                isPositive: change >= 0
+            };
+        } catch (error) {
+            console.error('Error fetching stock price:', error);
+            showError('Failed to fetch stock price. Please try again later.');
+            return null;
+        }
+    }
+
+    // Function to fetch intraday data for chart
+    async function fetchIntradayData(symbol, interval = '5min') {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/intraday/${symbol}?interval=${interval}`);
+            const data = await response.json();
+
+            if (data.error) {
                 showError(data.error);
+                return [];
             }
-            return null;
-        }
 
-        const quote = data['Global Quote'];
-        if (!quote) {
-            showError('No data available for this stock');
-            return null;
-        }
+            if (data['Time Series (5min)']) {
+                const timeSeries = data['Time Series (5min)'];
+                const chartData = [];
 
-        const price = parseFloat(quote['05. price']);
-        const change = parseFloat(quote['09. change']);
-        const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
+                for (const [timestamp, values] of Object.entries(timeSeries)) {
+                    chartData.push({
+                        x: new Date(timestamp),
+                        o: parseFloat(values['1. open']),
+                        h: parseFloat(values['2. high']),
+                        l: parseFloat(values['3. low']),
+                        c: parseFloat(values['4. close'])
+                    });
+                }
 
-        return {
-            price,
-            change,
-            changePercent,
-            isPositive: change >= 0
-        };
-    } catch (error) {
-        console.error('Error fetching stock price:', error);
-        showError('Failed to fetch stock price. Please try again later.');
-        return null;
-    }
-}
+                return chartData.reverse();
+            }
 
-// Function to fetch intraday data for chart
-async function fetchIntradayData(symbol, interval = '5min') {
-    try {
-        const response = await fetch(`/api/intraday/${symbol}?interval=${interval}`);
-        const data = await response.json();
-
-        if (data.error) {
-            showError(data.error);
+            return [];
+        } catch (error) {
+            console.error('Error fetching intraday data:', error);
+            showError('Failed to fetch chart data. Please try again later.');
             return [];
         }
+    }
 
-        if (data['Time Series (5min)']) {
-            const timeSeries = data['Time Series (5min)'];
-            const chartData = [];
+    // Function to fetch daily data for chart
+    async function fetchDailyData(symbol) {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/daily/${symbol}`);
+            const data = await response.json();
 
-            for (const [timestamp, values] of Object.entries(timeSeries)) {
-                chartData.push({
-                    x: new Date(timestamp),
-                    o: parseFloat(values['1. open']),
-                    h: parseFloat(values['2. high']),
-                    l: parseFloat(values['3. low']),
-                    c: parseFloat(values['4. close'])
-                });
+            if (data.error) {
+                showError(data.error);
+                return [];
             }
 
-            return chartData.reverse();
-        }
+            if (data['Time Series (Daily)']) {
+                const timeSeries = data['Time Series (Daily)'];
+                const chartData = [];
 
-        return [];
-    } catch (error) {
-        console.error('Error fetching intraday data:', error);
-        showError('Failed to fetch chart data. Please try again later.');
-        return [];
-    }
-}
+                for (const [timestamp, values] of Object.entries(timeSeries)) {
+                    chartData.push({
+                        x: new Date(timestamp),
+                        o: parseFloat(values['1. open']),
+                        h: parseFloat(values['2. high']),
+                        l: parseFloat(values['3. low']),
+                        c: parseFloat(values['4. close'])
+                    });
+                }
 
-// Function to fetch daily data for chart
-async function fetchDailyData(symbol) {
-    try {
-        const response = await fetch(`/api/daily/${symbol}`);
-        const data = await response.json();
+                return chartData.reverse();
+            }
 
-        if (data.error) {
-            showError(data.error);
+            return [];
+        } catch (error) {
+            console.error('Error fetching daily data:', error);
+            showError('Failed to fetch chart data. Please try again later.');
             return [];
         }
+    }
 
-        if (data['Time Series (Daily)']) {
-            const timeSeries = data['Time Series (Daily)'];
-            const chartData = [];
+    // Function to add a stock to the list
+    async function addStockToList(symbol) {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/search?q=${encodeURIComponent(symbol)}`);
+            const data = await response.json();
 
-            for (const [timestamp, values] of Object.entries(timeSeries)) {
-                chartData.push({
-                    x: new Date(timestamp),
-                    o: parseFloat(values['1. open']),
-                    h: parseFloat(values['2. high']),
-                    l: parseFloat(values['3. low']),
-                    c: parseFloat(values['4. close'])
-                });
+            if (data.error) {
+                showError(data.error);
+                return;
             }
 
-            return chartData.reverse();
-        }
+            const stockData = data.result?.find(s => s.symbol === symbol);
+            if (!stockData) {
+                showError('Stock not found');
+                return;
+            }
 
-        return [];
-    } catch (error) {
-        console.error('Error fetching daily data:', error);
-        showError('Failed to fetch chart data. Please try again later.');
-        return [];
-    }
-}
+            // Add to the list
+            const stockList = document.getElementById('stock-list');
+            if (stockList) {
+                const div = document.createElement('div');
+                div.className = 'p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b dark:border-gray-700 border-gray-200';
+                div.setAttribute('data-symbol', stockData.symbol);
 
-// Function to add a stock to the list
-async function addStockToList(symbol) {
-    try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(symbol)}`);
-        const data = await response.json();
-
-        if (data.error) {
-            showError(data.error);
-            return;
-        }
-
-        const stockData = data.result?.find(s => s.symbol === symbol);
-        if (!stockData) {
-            showError('Stock not found');
-            return;
-        }
-
-        // Add to the list
-        const stockList = document.getElementById('stock-list');
-        if (stockList) {
-            const div = document.createElement('div');
-            div.className = 'p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b dark:border-gray-700 border-gray-200';
-            div.setAttribute('data-symbol', stockData.symbol);
-
-            div.innerHTML = `
+                div.innerHTML = `
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-3">
                                 <div class="w-8 h-8 flex-shrink-0">
@@ -730,108 +785,6 @@ async function addStockToList(symbol) {
                         </div>
                     `;
 
-            div.addEventListener('click', () => {
-                // Remove active class from all items
-                document.querySelectorAll('#stock-list > div').forEach(item => {
-                    item.classList.remove('bg-primary/10', 'dark:bg-primary/20');
-                });
-
-                // Add active class to clicked item
-                div.classList.add('bg-primary/10', 'dark:bg-primary/20');
-
-                // Show stock details
-                showStockDetail(stockData);
-            });
-
-            stockList.appendChild(div);
-
-            // Show the newly added stock
-            showStockDetail(stockData);
-        }
-    } catch (error) {
-        console.error('Error adding stock to list:', error);
-        showError('Failed to add stock to list. Please try again.');
-    }
-}
-
-// Function to format price
-function formatPrice(price) {
-    return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-
-// Function to show stock detail
-function showStockDetail(stock) {
-    const detailSection = document.getElementById('stock-detail');
-    if (!detailSection) return;
-
-    detailSection.classList.remove('hidden');
-    detailSection.classList.add('md:flex');
-
-    document.getElementById('detail-name').textContent = stock.name;
-    document.getElementById('detail-symbol').textContent = stock.symbol;
-
-    const changeElement = document.getElementById('detail-change');
-    const changeText = `${stock.isPositive ? '+' : ''}${formatPrice(stock.changePercent)}% (${stock.isPositive ? '+' : ''}${formatPrice(stock.change)})`;
-    changeElement.textContent = changeText;
-    changeElement.className = stock.isPositive ? 'text-positive' : 'text-negative';
-
-    document.getElementById('detail-sell-price').textContent = `$${formatPrice(stock.price)}`;
-    document.getElementById('detail-buy-price').textContent = `$${formatPrice(stock.price + 0.03)}`;
-
-    // Update chart
-    updateChart(stock.symbol);
-}
-
-// Function to load watchlist items
-async function loadWatchlistItems(watchlistId) {
-    const stockListEl = document.getElementById('stock-list');
-    if (!stockListEl) return;
-
-    // Show loading state
-    stockListEl.innerHTML = `
-                <div class="flex items-center justify-center p-8">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-            `;
-
-    try {
-        const response = await fetch(`/api/watchlist/${watchlistId}`);
-        const data = await response.json();
-
-        if (data.items && data.items.length > 0) {
-            // Update watchlist name
-            const watchlistNameEl = document.getElementById('watchlist-name');
-            if (watchlistNameEl) {
-                watchlistNameEl.textContent = data.watchlist_name;
-            }
-
-            // Clear and populate the list
-            stockListEl.innerHTML = '';
-            data.items.forEach(stock => {
-                const div = document.createElement('div');
-                div.className = 'p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b dark:border-gray-700 border-gray-200';
-                div.setAttribute('data-symbol', stock.symbol);
-
-                div.innerHTML = `
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 flex-shrink-0">
-                                        <img src="${stock.logoUrl}" alt="${stock.name} logo" class="w-full h-full object-contain">
-                                    </div>
-                                    <div>
-                                        <div class="font-medium">${stock.name}</div>
-                                        <div class="text-sm text-gray-400">${stock.symbol}</div>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="font-semibold">$${formatPrice(stock.price)}</div>
-                                    <div class="text-xs ${stock.isPositive ? 'text-positive' : 'text-negative'}">
-                                        ${stock.isPositive ? '+' : ''}${formatPrice(stock.change)} (${stock.isPositive ? '+' : ''}${formatPrice(stock.changePercent)}%)
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-
                 div.addEventListener('click', () => {
                     // Remove active class from all items
                     document.querySelectorAll('#stock-list > div').forEach(item => {
@@ -842,54 +795,201 @@ async function loadWatchlistItems(watchlistId) {
                     div.classList.add('bg-primary/10', 'dark:bg-primary/20');
 
                     // Show stock details
-                    showStockDetail(stock);
+                    showStockDetail(stockData);
                 });
 
-                stockListEl.appendChild(div);
-            });
+                stockList.appendChild(div);
 
-            // Show the first stock as default
-            if (data.items.length > 0) {
-                showStockDetail(data.items[0]);
+                // Show the newly added stock
+                showStockDetail(stockData);
             }
-        } else {
-            stockListEl.innerHTML = `
-                        <div class="p-8 text-center text-gray-500">
-                            No items in this watchlist
-                        </div>
-                    `;
+        } catch (error) {
+            console.error('Error adding stock to list:', error);
+            showError('Failed to add stock to list. Please try again.');
         }
-    } catch (error) {
-        console.error('Error loading watchlist:', error);
-        stockListEl.innerHTML = `
-                    <div class="p-8 text-center text-red-500">
-                        Error loading watchlist. Please try again.
-                    </div>
-                `;
     }
-}
 
-// Function to switch between watchlists
-async function switchWatchlist(watchlistId) {
-    // Show loading state in the list
-    await loadWatchlistItems(watchlistId);
-}
+    // Function to format price
+    function formatPrice(price) {
+        return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
 
-// Add event listeners for watchlist navigation
-document.addEventListener('DOMContentLoaded', () => {
-    const watchlistLinks = document.querySelectorAll('.watchlist-link');
-    watchlistLinks.forEach(link => {
-        link.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const watchlistId = link.getAttribute('data-watchlist-id');
+    // Function to show stock detail
+    function showStockDetail(stock) {
+        const detailSection = document.getElementById('stock-detail');
+        if (!detailSection) return;
 
-            // Remove active class from all links
-            watchlistLinks.forEach(l => l.classList.remove('text-primary'));
-            // Add active class to clicked link
-            link.classList.add('text-primary');
+        detailSection.classList.remove('hidden');
+        detailSection.classList.add('md:flex');
 
-            // Load the selected watchlist
-            await switchWatchlist(watchlistId);
-        });
+        document.getElementById('detail-name').textContent = stock.name;
+        document.getElementById('detail-symbol').textContent = stock.symbol;
+
+        const changeElement = document.getElementById('detail-change');
+        const changeText = `${stock.isPositive ? '+' : ''}${formatPrice(stock.changePercent)}% (${stock.isPositive ? '+' : ''}${formatPrice(stock.change)})`;
+        changeElement.textContent = changeText;
+        changeElement.className = stock.isPositive ? 'text-positive' : 'text-negative';
+
+        document.getElementById('detail-sell-price').textContent = `$${formatPrice(stock.price)}`;
+        document.getElementById('detail-buy-price').textContent = `$${formatPrice(stock.price + 0.03)}`;
+
+        // Update chart
+        updateChart(stock.symbol);
+    }
+
+
+
+    // ==========================================
+    // Socket.IO and TradingView Integration
+    // ==========================================
+
+    // Global Chart Variables
+    let tvChart = null;
+    let tvCandleSeries = null;
+    let currentSymbol = null;
+
+    // Connect to Render Backend
+    const socket = io('https://penguin-trader-render-backend.onrender.com/');
+
+    socket.on('connect', () => {
+        console.log('Connected to Render Backend');
     });
+
+    socket.on('price_update', (data) => {
+        console.log('Price update received:', data);
+
+        // Ensure we have a chart and the update is for the current symbol
+        if (tvCandleSeries && currentSymbol && data.symbol === currentSymbol) {
+            // Logic to update the chart. 
+            // We assume 'data' contains the new price. 
+            // If data.price is present, update the last candle.
+
+            const price = parseFloat(data.price);
+            if (!isNaN(price)) {
+                // Get the last bar
+                const dataList = tvCandleSeries.data();
+                if (dataList.length > 0) {
+                    const lastBar = dataList[dataList.length - 1];
+
+                    // Check if the update is for a new time period or same
+                    // For simplicity, we'll update the current bar (real-time price update)
+                    const updatedBar = {
+                        ...lastBar,
+                        close: price,
+                        high: Math.max(lastBar.high, price),
+                        low: Math.min(lastBar.low, price)
+                    };
+
+                    tvCandleSeries.update(updatedBar);
+                }
+            }
+        }
+    });
+
+    // Implement missing updateChart function using Lightweight Charts
+    window.updateChart = async function (symbol, days = 30) {
+        console.log(`Updating chart for ${symbol} (${days} days)`);
+        currentSymbol = symbol;
+
+        const container = document.getElementById('stock-chart');
+        if (!container) {
+            console.error('Stock chart container not found');
+            return;
+        }
+
+        // Check if chart already exists, if so remove it (or we could reuse it, but replacing is safer for switching types)
+        // Actually, reusing is better for performance, but we need to handle resizing etc.
+        // For now, let's clear and recreate to ensure clean state and remove any Plotly artifacts.
+        container.innerHTML = '';
+        tvChart = null;
+        tvCandleSeries = null;
+
+        // Create Chart
+        const isDark = document.documentElement.classList.contains('dark');
+        const chartOptions = {
+            width: container.clientWidth,
+            height: 400,
+            layout: {
+                background: { color: isDark ? '#1A232D' : '#ffffff' },
+                textColor: isDark ? '#d1d4dc' : '#333',
+            },
+            grid: {
+                vertLines: { color: isDark ? '#2B2B43' : '#F0F3FA' },
+                horzLines: { color: isDark ? '#2B2B43' : '#F0F3FA' },
+            },
+            timeScale: {
+                timeVisible: true,
+                secondsVisible: false,
+            },
+        };
+
+        tvChart = LightweightCharts.createChart(container, chartOptions);
+
+        tvCandleSeries = tvChart.addCandlestickSeries({
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderVisible: false,
+            wickUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+        });
+
+        // Fetch Data
+        // We reuse existing fetch functions but map data
+        let chartData = [];
+        try {
+            if (days <= 1) {
+                // Intraday
+                const intradayData = await fetchIntradayData(symbol);
+                chartData = intradayData.map(d => ({
+                    time: d.x.getTime() / 1000, // Unix timestamp in seconds
+                    open: d.o,
+                    high: d.h,
+                    low: d.l,
+                    close: d.c
+                }));
+            } else {
+                // Daily
+                const dailyData = await fetchDailyData(symbol);
+                chartData = dailyData.map(d => ({
+                    time: d.x.getTime() / 1000, // Unix timestamp in seconds
+                    open: d.o,
+                    high: d.h,
+                    low: d.l,
+                    close: d.c
+                }));
+
+                // Filter roughly by days (assuming 1 candle per day for daily, but map might have gaps)
+                // Just take the last N items
+                if (chartData.length > days) {
+                    chartData = chartData.slice(-days);
+                }
+            }
+
+            // Sort by time (ascending)
+            chartData.sort((a, b) => a.time - b.time);
+
+            // Set data
+            tvCandleSeries.setData(chartData);
+            tvChart.timeScale().fitContent();
+
+        } catch (e) {
+            console.error('Error updating chart:', e);
+            container.innerHTML = '<div class="text-red-500 p-4">Error loading chart data</div>';
+        }
+
+        // Handle specific window resize
+        const resizeObserver = new ResizeObserver(entries => {
+            if (entries.length === 0 || !entries[0].contentRect) return;
+            const newRect = entries[0].contentRect;
+            tvChart.applyOptions({ width: newRect.width, height: newRect.height });
+        });
+        resizeObserver.observe(container);
+    };
+});
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM Content Loaded - initializing...');
+    // We do not call initWatchlist() from here because dashboard.html handles it
+    // initWatchlist(); 
 });
