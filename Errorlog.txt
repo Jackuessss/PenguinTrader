@@ -1,0 +1,2 @@
+Any error worthy of being put in my a-level computer science coursework error log be written here with the error message and how it was fixed:
+
