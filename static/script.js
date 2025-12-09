@@ -856,30 +856,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('price_update', (data) => {
-        console.log('Price update received:', data);
+        // console.log('Price update received:', data);
+        const price = parseFloat(data.price);
+        if (isNaN(price)) return;
 
-        // Ensure we have a chart and the update is for the current symbol
-        if (tvCandleSeries && currentSymbol && data.symbol === currentSymbol) {
-            // Logic to update the chart. 
-            // We assume 'data' contains the new price. 
-            // If data.price is present, update the last candle.
+        // 1. Update the Stock List Item
+        const stockItem = document.querySelector(`#stock-list div[data-symbol="${data.symbol}"]`);
+        if (stockItem) {
+            const priceEl = stockItem.querySelector('.font-semibold');
+            if (priceEl) {
+                // Flash effect can be added here if needed
+                priceEl.textContent = `$${formatPrice(price)}`;
 
-            const price = parseFloat(data.price);
-            if (!isNaN(price)) {
-                // Get the last bar
+                // Animate color based on movement (simple check against previous text content or similar)
+            }
+        }
+
+        // 2. Update the Detail View if this is the current symbol
+        if (currentSymbol && data.symbol === currentSymbol) {
+            const sellEl = document.getElementById('detail-sell-price');
+            const buyEl = document.getElementById('detail-buy-price');
+
+            if (sellEl) sellEl.textContent = `$${formatPrice(price)}`;
+            if (buyEl) buyEl.textContent = `$${formatPrice(price + 0.03)}`; // Simulated spread
+
+            // 3. Update Chart
+            if (tvCandleSeries) {
                 const dataList = tvCandleSeries.data();
                 if (dataList.length > 0) {
                     const lastBar = dataList[dataList.length - 1];
-
-                    // Check if the update is for a new time period or same
-                    // For simplicity, we'll update the current bar (real-time price update)
                     const updatedBar = {
                         ...lastBar,
                         close: price,
                         high: Math.max(lastBar.high, price),
                         low: Math.min(lastBar.low, price)
                     };
-
                     tvCandleSeries.update(updatedBar);
                 }
             }
