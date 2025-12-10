@@ -293,9 +293,6 @@ function renderWatchlistNav() {
     const allTab = document.createElement('button');
     allTab.textContent = 'Stocks';
     allTab.className = `watchlist-button font-medium ${window.activeWatchlistId === null ? 'watchlist-active text-white' : ''} transition-all duration-200`;
-    if (window.activeWatchlistId === null) {
-        allTab.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4)';
-    }
     allTab.onclick = () => switchWatchlist(null);
     navContainer.appendChild(allTab);
 
@@ -304,9 +301,6 @@ function renderWatchlistNav() {
         const btn = document.createElement('button');
         btn.textContent = wl.name;
         btn.className = `watchlist-button font-medium whitespace-nowrap ${window.activeWatchlistId === wl.id ? 'watchlist-active text-white' : ''} transition-all duration-200`;
-        if (window.activeWatchlistId === wl.id) {
-            btn.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4)';
-        }
         btn.onclick = () => switchWatchlist(wl.id);
         navContainer.appendChild(btn);
     });

@@ -787,13 +787,13 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchAllStocks();
 
-            // Theme toggle functionality
-            const themeToggle = document.getElementById('theme-toggle');
-            if (themeToggle) {
-                themeToggle.addEventListener('click', () => {
-                    document.documentElement.classList.toggle('dark');
-                });
-            }
+            // Theme toggle functionality - MOVED TO SCRIPT.JS
+            // const themeToggle = document.getElementById('theme-toggle');
+            // if (themeToggle) {
+            //     themeToggle.addEventListener('click', () => {
+            //         document.documentElement.classList.toggle('dark');
+            //     });
+            // }
 
             // Search functionality
             const searchInput = document.getElementById('stock-search');
