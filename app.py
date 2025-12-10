@@ -23,6 +23,16 @@ app = Flask(__name__)
 CORS(app)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "Jacques")
 
+# Load Stocks Data
+# Load Stocks Data
+try:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(BASE_DIR, 'stocks.json'), 'r') as f:
+        STOCKS_DATA = json.load(f)
+except Exception as e:
+    print(f"Error loading stocks.json: {e}")
+    STOCKS_DATA = []
+
 # Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -333,7 +343,8 @@ def forgotpasswordemail():
 @login_required
 def dashboard():
     list_type = request.args.get('list', 'my-watchlist')
-    return render_template('dashboard.html', user_id=current_user.id, list_type=list_type)
+    logo_api_key = os.getenv("LOGO_API_KEY", "")
+    return render_template('dashboard.html', user_id=current_user.id, list_type=list_type, logo_api_key=logo_api_key, stocks=STOCKS_DATA)
 
 @app.route('/homepage')
 def homepage():
@@ -358,3 +369,304 @@ def get_stocks():
     except Exception as e:
         print(f"Error loading stocks.json: {e}")
         return jsonify({"error": "Failed to load stock data"}), 500
+
+@app.route('/api/create_watchlist', methods=['POST'])
+@login_required
+def create_watchlist():
+    data = request.get_json()
+    user_id = current_user.id
+    watchlist_name = data.get('watchlist_name')
+
+    if not watchlist_name:
+        return jsonify({'error': 'Watchlist name is required'}), 400
+
+    conn = get_supabase_connection()
+    cursor = conn.cursor()
+
+    try:
+        watchlist_id = str(uuid.uuid4())
+        current_timestamp = datetime.utcnow()
+        
+        # Get next position
+        cursor.execute("""
+            SELECT COALESCE(MAX(position), -1) + 1 
+            FROM watchlist 
+            WHERE user_id = %s
+        """, (user_id,))
+        next_position = cursor.fetchone()[0]
+
+        cursor.execute("""
+            INSERT INTO watchlist (watchlist_id, user_id, watchlist_name, created_at, updated_at, position)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (watchlist_id, user_id, watchlist_name, current_timestamp, current_timestamp, next_position))
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True, 
+            'watchlist_id': watchlist_id, 
+            'watchlist_name': watchlist_name
+        }), 201
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating watchlist: {e}")
+        return jsonify({'error': 'Failed to create watchlist'}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/watchlists', methods=['GET'])
+@login_required
+def get_watchlists():
+    user_id = current_user.id
+    conn = get_supabase_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        # Fetch watchlists
+        cursor.execute("""
+            SELECT watchlist_id, watchlist_name, created_at 
+            FROM watchlist 
+            WHERE user_id = %s 
+            ORDER BY position ASC, created_at ASC
+        """, (user_id,))
+        watchlists = cursor.fetchall()
+        
+        # For each watchlist, fetch items
+        result = []
+        for wl in watchlists:
+            cursor.execute("""
+                SELECT stock_symbol 
+                FROM watchlist_items 
+                WHERE watchlist_id = %s
+                ORDER BY position ASC, added_at ASC
+            """, (wl['watchlist_id'],))
+            items = [row['stock_symbol'] for row in cursor.fetchall()]
+            
+            result.append({
+                'id': wl['watchlist_id'],
+                'name': wl['watchlist_name'],
+                'created_at': wl['created_at'],
+                'items': items
+            })
+            
+        return jsonify({'success': True, 'watchlists': result})
+    except Exception as e:
+        print(f"Error fetching watchlists: {e}")
+        return jsonify({'error': 'Failed to fetch watchlists'}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/watchlist/<watchlist_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def manage_watchlist(watchlist_id):
+    conn = get_supabase_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if request.method == 'GET':
+            cursor.execute("""
+                SELECT w.watchlist_name, i.stock_symbol, i.position 
+                FROM watchlist w
+                LEFT JOIN watchlist_items i ON w.watchlist_id = i.watchlist_id
+                WHERE w.watchlist_id = %s AND w.user_id = %s
+                ORDER BY i.position
+            """, (watchlist_id, current_user.id))
+            
+            rows = cursor.fetchall()
+            if not rows:
+                return jsonify({'error': 'Watchlist not found'}), 404
+                
+            watchlist_name = rows[0][0]
+            items = []
+            
+            # Helper to load domain from JSON if possible, or just return symbol
+            # Since we don't want to parse JSON every time, we might rely on frontend to map symbols to domains?
+            # User wants backend to provide it? The frontend `loadWatchlistItems` does `data.items` which needs `domain` etc.
+            # Actually frontend `script.js` line 851 handles `stock.domain || ...`.
+            # So we just need to return the symbols list?
+            # Wait, `script.js` line 1500 `const data = await response.json(); if (data && data.items) ...`
+            # And `renderListSettingsItems` uses `watchlist.items` which are objects or strings.
+            # If backend returns simple list of strings, frontend logic: `const name = isObject ? item.name : ...` handles it.
+            # But we want `domain`.
+            # Let's read `stocks.json` ONCE at startup and create a lookup map.
+            
+            # Build items list
+            # We filter out None symbols (if watchlist is empty, left join gives one row with None symbol)
+            db_symbols = [r[1] for r in rows if r[1]]
+            
+            # Enrich with local JSON data
+            enriched_items = []
+            for sym in db_symbols:
+                stock_info = next((s for s in STOCKS_DATA if s['symbol'] == sym), None)
+                if stock_info:
+                    enriched_items.append({
+                        'symbol': sym,
+                        'name': stock_info['name'],
+                        'domain': stock_info['domain']
+                    })
+                else:
+                    enriched_items.append({'symbol': sym}) # Fallback
+            
+            return jsonify({
+                'id': watchlist_id,
+                'watchlist_name': watchlist_name,
+                'items': enriched_items
+            })
+
+        elif request.method == 'PUT':
+            data = request.get_json()
+            new_name = data.get('name')
+            if not new_name:
+                return jsonify({'error': 'Name is required'}), 400
+                
+            cursor.execute("UPDATE watchlist SET watchlist_name = %s WHERE watchlist_id = %s AND user_id = %s", (new_name, watchlist_id, current_user.id))
+            conn.commit()
+            return jsonify({'success': True})
+
+        elif request.method == 'DELETE':
+            cursor.execute("DELETE FROM watchlist_items WHERE watchlist_id = %s", (watchlist_id,))
+            cursor.execute("DELETE FROM watchlist WHERE watchlist_id = %s AND user_id = %s", (watchlist_id, current_user.id))
+            conn.commit()
+            return jsonify({'success': True})
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Error managing watchlist {watchlist_id}: {e}")
+        return jsonify({'error': 'Database error'}), 500
+    finally:
+        conn.close()
+        
+@app.route('/api/watchlist/item/reorder', methods=['POST'])
+@login_required
+def reorder_watchlist_items():
+    data = request.get_json()
+    watchlist_id = data.get('watchlist_id')
+    ordered_items = data.get('ordered_items') # List of symbols in new order
+    
+    if not watchlist_id or not ordered_items or not isinstance(ordered_items, list):
+        return jsonify({'error': 'Invalid data'}), 400
+
+    conn = get_supabase_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Verify ownership
+        cursor.execute("SELECT user_id FROM watchlist WHERE watchlist_id = %s", (watchlist_id,))
+        result = cursor.fetchone()
+        if not result or result[0] != current_user.id:
+             return jsonify({'error': 'Watchlist not found or unauthorized'}), 404
+             
+        # Update positions
+        for index, symbol in enumerate(ordered_items):
+            cursor.execute("""
+                UPDATE watchlist_items 
+                SET position = %s 
+                WHERE watchlist_id = %s AND stock_symbol = %s
+            """, (index, watchlist_id, symbol))
+            
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        print(f"Error reordering items: {e}")
+        return jsonify({'error': 'Failed to reorder items'}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/watchlist/reorder', methods=['POST'])
+@login_required
+def reorder_watchlists():
+    data = request.get_json()
+    ordered_ids = data.get('ordered_ids')  # List of watchlist_ids in new order
+    
+    if not ordered_ids or not isinstance(ordered_ids, list):
+        return jsonify({'error': 'Invalid data format'}), 400
+
+    conn = get_supabase_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Update positions
+        # Using a loop for simplicity, or we could construct a CASE statement
+        for index, watchlist_id in enumerate(ordered_ids):
+            cursor.execute("""
+                UPDATE watchlist 
+                SET position = %s 
+                WHERE watchlist_id = %s AND user_id = %s
+            """, (index, watchlist_id, current_user.id))
+            
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        print(f"Error reordering watchlists: {e}")
+        return jsonify({'error': 'Failed to reorder watchlists'}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/watchlist/item', methods=['POST', 'DELETE'])
+@login_required
+def manage_watchlist_item():
+    data = request.get_json()
+    watchlist_id = data.get('watchlist_id')
+    symbol = data.get('symbol')
+    
+    if not watchlist_id or not symbol:
+        return jsonify({'error': 'Watchlist ID and symbol are required'}), 400
+        
+    conn = get_supabase_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Verify ownership
+        cursor.execute("SELECT user_id FROM watchlist WHERE watchlist_id = %s", (watchlist_id,))
+        result = cursor.fetchone()
+        if not result or result[0] != current_user.id:
+             return jsonify({'error': 'Watchlist not found or unauthorized'}), 404
+
+        if request.method == 'POST':
+            # Check if item exists
+            cursor.execute("""
+                SELECT 1 FROM watchlist_items 
+                WHERE watchlist_id = %s AND stock_symbol = %s
+            """, (watchlist_id, symbol))
+            
+            if cursor.fetchone():
+                return jsonify({'success': True, 'message': 'Item already in watchlist'})
+            
+            # Get next position
+            cursor.execute("""
+                SELECT COALESCE(MAX(position), -1) + 1 
+                FROM watchlist_items 
+                WHERE watchlist_id = %s
+            """, (watchlist_id,))
+            next_position = cursor.fetchone()[0]
+
+            # Add item
+            item_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO watchlist_items (watchlist_item_id, watchlist_id, stock_symbol, added_at, position)
+                VALUES (%s, %s, %s, NOW(), %s)
+            """, (item_id, watchlist_id, symbol, next_position))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Item added'})
+            
+        elif request.method == 'DELETE':
+            # Remove item
+            cursor.execute("""
+                DELETE FROM watchlist_items 
+                WHERE watchlist_id = %s AND stock_symbol = %s
+            """, (watchlist_id, symbol))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Item removed'})
+            
+    except Exception as e:
+        conn.rollback()
+        print(f"Error managing watchlist item: {e}")
+        return jsonify({'error': 'Database error'}), 500
+    finally:
+        conn.close()
+
+if __name__ == '__main__':
+    app.run(debug=True)

@@ -37,6 +37,11 @@
                 document.documentElement.classList.remove('dark');
             }
         });
+
+        // Backend injected variables
+        window.LOGO_API_KEY = "{{ logo_api_key }}";
+        window.defaultStocks = {{ stocks | tojson }};
+        window.allStocks = window.defaultStocks;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -209,13 +214,13 @@
                     <!-- Watchlists will be dynamically inserted here -->
                 </div>
                 <div class="flex items-center space-x-2">
-                    <button class="watchlist-button">
+                    <button id="create-watchlist-btn" class="watchlist-button">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
                             </path>
                         </svg>
                     </button>
-                    <button class="watchlist-button">
+                    <button id="edit-watchlist-btn" class="watchlist-button">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
@@ -260,6 +265,14 @@
                                 <span id="detail-change" class="text-gray-400">Loading...</span>
                             </div>
                         </div>
+                        <button
+                            class="watchlist-star p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z">
+                                </path>
+                            </svg>
+                        </button>
                     </div>
 
                     <!-- Buy/Sell Panel -->
@@ -317,6 +330,308 @@
     </div>
 
 
+    <!-- Create Watchlist Modal -->
+    <div id="create-watchlist-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true" id="modal-backdrop">
+        </div>
+
+        <!-- Modal Panel -->
+        <div class="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
+            <div
+                class="relative bg-white dark:bg-card rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-md sm:w-full border border-gray-200 dark:border-gray-700">
+                <!-- Header with Close Button -->
+                <div class="px-6 pt-6 pb-2 flex justify-between items-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">Create
+                        watchlist</h3>
+                    <button type="button"
+                        class="text-gray-400 hover:text-gray-500 focus:outline-none transition-colors duration-200"
+                        id="close-modal-btn">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="px-6 py-4">
+                    <div class="mt-2">
+                        <label for="watchlist-name-input"
+                            class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">NAME</label>
+                        <input type="text" id="watchlist-name-input"
+                            class="w-full bg-gray-50 dark:bg-darker border border-gray-300 dark:border-gray-600 rounded-md py-3 px-4 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-150 ease-in-out"
+                            placeholder="My Watchlist">
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-6 pb-6 pt-2">
+                    <button type="button" id="create-watchlist-confirm-btn"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-3 bg-primary text-base font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:text-sm transition duration-150 ease-in-out font-semibold">
+                        Create
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Home Settings Modal (Reorder) -->
+    <!-- Home Settings Modal (Reorder) -->
+    <div id="home-settings-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true"
+            id="home-settings-backdrop">
+        </div>
+
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
+                <div
+                    class="relative bg-white dark:bg-card rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:w-full sm:max-w-md border border-gray-200 dark:border-gray-700">
+
+                    <!-- Modal Header -->
+                    <div class="px-6 pt-6 pb-2 flex justify-between items-center bg-transparent">
+                        <!-- Close Button (Left) -->
+                        <button type="button"
+                            class="text-gray-400 hover:text-gray-500 focus:outline-none transition-colors duration-200"
+                            id="close-home-settings-btn">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="modal-title">Home
+                            settings</h3>
+
+                        <div class="w-6"></div> <!-- Spacer for centering -->
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="px-4 py-3 space-y-4">
+                        <!-- Sub-header: Lists Label & Create Button -->
+                        <div
+                            class="flex justify-between items-center border-b border-gray-700 dark:border-gray-600 pb-2">
+                            <div class="text-sm font-bold text-gray-900 dark:text-white">
+                                Lists
+                            </div>
+                            <button type="button" class="bg-primary hover:opacity-90 text-white rounded-full p-1"
+                                id="home-settings-create-btn">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Scrollable List Container (Fixed Height) -->
+                        <div class="relative h-64 overflow-hidden">
+                            <ul id="home-settings-list" class="h-full overflow-y-auto space-y-1 pr-1">
+                                <!-- Items rendered via JS -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- List Settings Modal (Individual List) -->
+    <div id="list-settings-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true"
+            id="list-settings-backdrop">
+        </div>
+
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
+                <div
+                    class="relative bg-white dark:bg-card rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:w-full sm:max-w-md border border-gray-200 dark:border-gray-700">
+
+                    <!-- Header with Name and Edit Button -->
+                    <div class="px-6 pt-6 pb-2 flex justify-between items-center bg-transparent">
+                        <button type="button"
+                            class="text-gray-400 hover:text-gray-500 focus:outline-none transition-colors duration-200"
+                            id="back-to-home-settings-btn">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                            </svg>
+                        </button>
+
+                        <div class="text-lg font-semibold text-gray-900 dark:text-white flex items-center space-x-2">
+                            <span id="list-settings-title-display">List settings</span>
+                        </div>
+
+                        <button type="button"
+                            class="text-gray-400 hover:text-gray-500 focus:outline-none transition-colors duration-200"
+                            id="close-list-settings-btn">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="px-4 py-3 space-y-4">
+                        <!-- List Name Display & Edit Trigger -->
+                        <div class="flex justify-between items-end border-b border-gray-700 dark:border-gray-600 pb-2">
+                            <div>
+                                <div
+                                    class="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                                    NAME
+                                </div>
+                                <div class="text-xl text-white font-medium" id="list-settings-name-text">
+                                    My Watchlist
+                                </div>
+                            </div>
+                            <button type="button" id="list-settings-edit-name-btn"
+                                class="text-gray-400 hover:text-white transition-colors pb-1">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex space-x-2">
+                            <button type="button" id="list-settings-add-btn"
+                                class="bg-primary hover:bg-opacity-90 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center font-medium shadow-lg transition-transform transform active:scale-95">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                            </button>
+                            <button type="button" id="list-settings-delete-btn"
+                                class="bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-full px-4 h-10 flex items-center justify-center font-medium transition-colors border border-gray-700">
+                                <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                                Delete list
+                            </button>
+                        </div>
+
+                        <!-- Content Area (Fixed Height) -->
+                        <div class="relative h-64 overflow-hidden">
+                            <!-- Empty State -->
+                            <div id="list-settings-empty-state"
+                                class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 hidden">
+                                <h4 class="text-white font-semibold text-lg mb-1">This watchlist is empty</h4>
+                                <p class="text-gray-500 text-sm max-w-xs">Add the instruments you're interested in to
+                                    easily track their performance and price changes all in one place</p>
+                            </div>
+
+                            <!-- Items List -->
+                            <ul id="list-settings-items" class="h-full overflow-y-auto space-y-1 pr-1">
+                                <!-- Items rendered via JS -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Watchlist Modal (New) -->
+    <div id="edit-watchlist-modal" class="fixed inset-0 z-[60] hidden" aria-labelledby="edit-modal-title" role="dialog"
+        aria-modal="true">
+        <div class="fixed inset-0 bg-black bg-opacity-70 transition-opacity" id="edit-watchlist-backdrop"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen p-4 text-center">
+                <div
+                    class="relative bg-gray-900 rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:w-full sm:max-w-md border border-gray-700">
+                    <!-- Header -->
+                    <div class="px-6 pt-5 pb-4 flex justify-between items-center bg-gray-900 border-b border-gray-800">
+                        <button type="button" class="text-gray-400 hover:text-white transition-colors"
+                            id="close-edit-watchlist-btn">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <h3 class="text-lg font-medium text-white">Edit watchlist</h3>
+                        <div class="w-6"></div> <!-- Spacer for centering -->
+                    </div>
+
+                    <!-- Body -->
+                    <div class="px-6 py-6 space-y-6">
+                        <div>
+                            <label for="edit-watchlist-name-input"
+                                class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                                NAME
+                            </label>
+                            <input type="text" id="edit-watchlist-name-input"
+                                class="w-full bg-gray-800 border-none rounded-lg text-white py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none placeholder-gray-500"
+                                placeholder="List Name">
+                        </div>
+
+                        <button type="button" id="confirm-edit-watchlist-btn"
+                            class="w-full bg-primary hover:bg-opacity-90 text-white rounded-full py-3 font-semibold text-base transition-colors shadow-lg">
+                            Confirm
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add to Watchlist Modal -->
+    <div id="add-to-watchlist-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="add-modal-title" role="dialog"
+        aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true"
+            id="add-modal-backdrop">
+        </div>
+
+        <!-- Modal Panel -->
+        <div class="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
+            <div
+                class="relative bg-white dark:bg-card rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-md sm:w-full border border-gray-200 dark:border-gray-700">
+                <!-- Header with Close Button -->
+                <div class="px-6 pt-6 pb-2 flex justify-between items-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="add-modal-title">Add to
+                        Watchlist</h3>
+                    <button type="button"
+                        class="text-gray-400 hover:text-gray-500 focus:outline-none transition-colors duration-200"
+                        id="close-add-modal-btn">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- List of Watchlists -->
+                <div class="px-2 py-2 max-h-96 overflow-y-auto" id="add-watchlist-list">
+                    <!-- Watchlists will be inserted here -->
+                </div>
+
+                <!-- Footer -->
+                <div class="px-4 pb-4 pt-2">
+                    <button type="button" id="open-create-from-add-btn"
+                        class="w-full flex items-center justify-start space-x-3 px-4 py-3 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150">
+                        <div
+                            class="flex-shrink-0 w-6 h-6 rounded-full border border-gray-400 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4v16m8-8H4"></path>
+                            </svg>
+                        </div>
+                        <span class="font-medium">Add to New Watchlist</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script>
@@ -359,8 +674,8 @@
             }
         }
 
-        // Function to load watchlist items
-        async function loadWatchlistItems() {
+        // Function to load all stocks for search and default view
+        async function fetchAllStocks() {
             try {
                 console.log('Loading stocks from API...');
 
@@ -412,7 +727,7 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-3">
                                         <div class="w-8 h-8 flex-shrink-0">
-                                            <img src="${item.logoUrl}" alt="${item.name} logo" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/32'">
+                                            <img src="${item.logoUrl}" alt="${item.name} logo" class="w-full h-full object-contain" onerror="this.onerror=null;this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0iI2NjYyI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkeT0iLjNlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwIj4/PC90ZXh0Pjwvc3ZnPg=='">
                                         </div>
                                         <div>
                                             <div class="font-medium">${item.name}</div>
@@ -444,10 +759,10 @@
                             stockList.appendChild(div);
                         });
 
-                        // Show first stock details by default if available
-                        if (window.allStocks.length > 0) {
-                            showStockDetail(window.allStocks[0]);
-                        }
+                        // Show first stock details by default - REMOVED per user request
+                        // if (window.allStocks.length > 0) {
+                        //    showStockDetail(window.allStocks[0]);
+                        // }
                     } else {
                         stockList.innerHTML = `
                             <div class="p-4 text-center text-gray-500">
@@ -470,7 +785,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadWatchlistItems();
+            fetchAllStocks();
 
             // Theme toggle functionality
             const themeToggle = document.getElementById('theme-toggle');
