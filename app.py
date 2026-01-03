@@ -13,6 +13,7 @@ from supabase import create_client, Client
 from psycopg2.extras import RealDictCursor
 import time
 import json
+import base64
 
 # Load environment variables
 load_dotenv()
@@ -40,11 +41,12 @@ login_manager.login_view = 'login'
 
 # User class for Flask-Login
 class User(UserMixin):
-    def __init__(self, user_id, email, first_name, last_name):
+    def __init__(self, user_id, email, first_name, last_name, alpaca_account_id=None):
         self.id = user_id
         self.email = email
         self.first_name = first_name
         self.last_name = last_name
+        self.alpaca_account_id = alpaca_account_id
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -55,7 +57,38 @@ def load_user(user_id):
     conn.close()
     
     if user:
-        return User(user[0], user[1], user[2], user[3])
+        # Check if alpaca_account_id column exists in the row (it should be the last one if we added it)
+        # Using a safer dict approach via RealDictCursor is better, but here we used tuple index.
+        # Assuming schema: user_id, email, first_name, last_name, password_hash, terms, created_at, reset_code, alpaca_account_id
+        # Let's check init_supabase_db to see the original index.
+        # Original: user_id(0), email(1), first_name (missing in create table?), last_name (missing?).
+        # Wait, the init_supabase_db logic in line 123 only has user_id, email, password_hash, created_at.
+        # BUT the login logic uses user[2], user[3] for names.
+        # This implies the DB schema in production/running is different from init_supabase_db function or I misread.
+        # Let's depend on the query.
+        # To be safe, we should probably switch to RealDictCursor or named attributes if possible, but let's stick to the current pattern.
+        # We'll assume alpaca_account_id is fetched.
+        # Since I can't know the exact index without `SELECT *`, I'll update the query to be explicit.
+        
+        # Explicit query is safer:
+        # SELECT user_id, email, first_name, last_name, alpaca_account_id FROM users ...
+        pass
+    
+    # Re-implementing load_user to be safer and include alpaca_id
+    conn = get_supabase_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor) # Use RealDictCursor
+    cursor.execute("SELECT user_id, email, first_name, last_name, alpaca_account_id FROM users WHERE user_id = %s", (user_id,))
+    user_data = cursor.fetchone()
+    conn.close()
+    
+    if user_data:
+        return User(
+            user_data['user_id'], 
+            user_data['email'], 
+            user_data['first_name'], 
+            user_data['last_name'],
+            user_data.get('alpaca_account_id')
+        )
     return None
 
 # Get Alpha Vantage API key from environment variable
@@ -68,6 +101,16 @@ FINNHUB_API_KEY = 'cvia941r01qks9q9977gcvia941r01qks9q99780'
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 SUPABASE_DB_URL = os.getenv('SUPABASE_DB_URL')
+
+# Alpaca Broker Configuration
+ALPACA_BROKER_URL = os.getenv('ALPACA_BROKER_URL', 'https://broker-api.sandbox.alpaca.markets/v1')
+ALPACA_BROKER_KEY = os.getenv('ALPACA_BROKER_KEY')
+ALPACA_BROKER_SECRET = os.getenv('ALPACA_BROKER_SECRET')
+
+def get_alpaca_headers():
+    return {
+        "Authorization": f"Basic {base64.b64encode(f'{ALPACA_BROKER_KEY}:{ALPACA_BROKER_SECRET}'.encode()).decode()}"
+    }
 
 # Initialize Supabase client only if credentials are available
 supabase = None
@@ -159,7 +202,88 @@ def signup_user(email, password, first_name, last_name, terms):
     user = cursor.fetchone()
     
     if user:
+        conn.close()
         return 'Email is already in use!'
+    
+    # ---------------------------------------------------------
+    # ALPACA SHADOW SIGNUP (Broker API)
+    # ---------------------------------------------------------
+    alpaca_account_id = None
+    try:
+        # Construct the payload with hardcoded KYC for Sandbox
+        # We use the user's real name/email, but fake identity data
+        payload = {
+            "contact": {
+                "email_address": email,
+                "phone_number": "555-555-5555",
+                "street_address": ["123 Simulation Blvd"],
+                "city": "New York",
+                "state": "NY",
+                "postal_code": "10001",
+                "country": "USA"
+            },
+            "identity": {
+                "given_name": first_name,
+                "family_name": last_name,
+                "date_of_birth": "1990-01-01",
+                "tax_id": "400-50-1234",
+                "tax_id_type": "USA_SSN",
+                "country_of_citizenship": "USA",
+                "country_of_birth": "USA",
+                "country_of_tax_residence": "USA",
+                "funding_source": ["employment_income"]
+            },
+            "disclosures": {
+                "is_control_person": False,
+                "is_affiliated_exchange_or_finra": False,
+                "is_politically_exposed": False,
+                "immediate_family_exposed": False
+            },
+            "agreements": [
+                {
+                    "agreement": "margin_agreement",
+                    "signed_at": datetime.utcnow().isoformat() + "Z",
+                    "ip_address": "127.0.0.1"
+                },
+                {
+                    "agreement": "account_agreement",
+                    "signed_at": datetime.utcnow().isoformat() + "Z",
+                    "ip_address": "127.0.0.1"
+                },
+                {
+                    "agreement": "customer_agreement",
+                    "signed_at": datetime.utcnow().isoformat() + "Z",
+                    "ip_address": "127.0.0.1"
+                }
+            ]
+        }
+        
+        # Make the request to Alpaca
+        response = requests.post(
+            f"{ALPACA_BROKER_URL}/accounts",
+            json=payload,
+            headers=get_alpaca_headers()
+        )
+        
+        if response.status_code in [200, 201]:
+            alpaca_data = response.json()
+            alpaca_account_id = alpaca_data.get('id')
+            print(f"Alpaca Account Created: {alpaca_account_id}")
+        else:
+            print(f"Alpaca Signup Failed: {response.text}")
+            # In a real app, we might want to block signup, but for partial migration
+            # we could proceed or return error. Let's return error to be safe.
+            conn.close()
+            return f'Trading Account Creation Failed: {response.text}'
+
+    except Exception as e:
+        print(f"Alpaca Error: {e}")
+        conn.close()
+        return 'Error creating trading account.'
+
+    # ---------------------------------------------------------
+    # DB INSERTION
+    # ---------------------------------------------------------
     
     # Generate unique user_id
     user_id = str(uuid.uuid4())
@@ -171,20 +295,26 @@ def signup_user(email, password, first_name, last_name, terms):
     # Get the current timestamp with timezone
     current_timestamp = datetime.utcnow()
 
-    cursor.execute("""
-        INSERT INTO users (user_id, email, first_name, last_name, password_hash, terms, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """, (user_id, email, first_name, last_name, hashed_password, terms, current_timestamp))
-    
-    # Create My Watchlist for the new user
-    watchlist_id = str(uuid.uuid4())
-    cursor.execute("""
-        INSERT INTO watchlist (watchlist_id, user_id, watchlist_name, created_at, updated_at)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (watchlist_id, user_id, "My Watchlist", current_timestamp, current_timestamp))
-    
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute("""
+            INSERT INTO users (user_id, email, first_name, last_name, password_hash, terms, created_at, alpaca_account_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (user_id, email, first_name, last_name, hashed_password, terms, current_timestamp, alpaca_account_id))
+        
+        # Create My Watchlist for the new user
+        watchlist_id = str(uuid.uuid4())
+        cursor.execute("""
+            INSERT INTO watchlist (watchlist_id, user_id, watchlist_name, created_at, updated_at, position)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (watchlist_id, user_id, "My Watchlist", current_timestamp, current_timestamp, 0))
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"DB Error: {e}")
+        return 'Database Error during signup.'
+    finally:
+        conn.close()
     
     return 'Signup successful! Please log in.'
 
@@ -229,12 +359,18 @@ def signup():
 
         if 'Signup successful!' in message:
             # Create a browser session for the new user
-            user_data = authenticate_user(email, password)
-            if user_data:
-                user = User(user_data[0], user_data[1], user_data[2], user_data[3])
+            user_data_row = authenticate_user(email, password)
+            if user_data_row:
+                # user_data_row is a tuple from `SELECT *` in authenticate_user
+                # We need to map it correctly.
+                # authenticate_user returns `user` tuple.
+                # The User class now expects alpaca_account_id.
+                # We should refactor authenticate_user to return dict or User object, but to minimize changes:
+                # We need to fetch the full user object properly.
+                user = load_user(user_data_row[0]) # Use load_user to get the proper User object
                 login_user(user)
                 session.permanent = False  # Session lasts until browser closes
-                session['user_id'] = user_data[0]
+                session['user_id'] = user.id
                 session['email'] = email
                 flash('Account created and logged in successfully!', 'success')
                 return redirect(url_for('dashboard'))
@@ -258,9 +394,9 @@ def login():
             flash("Email and password are required", "error")
             return redirect(url_for('login'))
         # Validates if user exists or not
-        user_data = authenticate_user(email, password)
-        if user_data:
-            user = User(user_data[0], user_data[1], user_data[2], user_data[3])
+        user_data_row = authenticate_user(email, password)
+        if user_data_row:
+            user = load_user(user_data_row[0]) # Use load_user which handles the new schema
             login_user(user)
             # Checks if remember me is checked and if it is it creates a session
             remember = 'remember' in request.form
@@ -667,6 +803,90 @@ def manage_watchlist_item():
         return jsonify({'error': 'Database error'}), 500
     finally:
         conn.close()
+
+# ---------------------------------------------------------
+# ALPACA TRADING PROXY ROUTES
+# ---------------------------------------------------------
+
+@app.route('/api/portfolio', methods=['GET'])
+@login_required
+def get_portfolio():
+    if not current_user.alpaca_account_id:
+        return jsonify({'error': 'No trading account found'}), 400
+        
+    try:
+        response = requests.get(
+            f"{ALPACA_BROKER_URL}/trading/accounts/{current_user.alpaca_account_id}/account",
+            headers=get_alpaca_headers()
+        )
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({'error': 'Failed to fetch portfolio', 'details': response.text}), response.status_code
+    except Exception as e:
+        print(f"Portfolio Error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/positions', methods=['GET'])
+@login_required
+def get_positions():
+    if not current_user.alpaca_account_id:
+        return jsonify({'error': 'No trading account found'}), 400
+        
+    try:
+        response = requests.get(
+            f"{ALPACA_BROKER_URL}/trading/accounts/{current_user.alpaca_account_id}/positions",
+            headers=get_alpaca_headers()
+        )
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({'error': 'Failed to fetch positions', 'details': response.text}), response.status_code
+    except Exception as e:
+        print(f"Positions Error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/order', methods=['POST'])
+@login_required
+def place_order():
+    if not current_user.alpaca_account_id:
+        return jsonify({'error': 'No trading account found'}), 400
+        
+    data = request.get_json()
+    symbol = data.get('symbol')
+    qty = data.get('qty')
+    side = data.get('side') # buy or sell
+    type = data.get('type', 'market')
+    time_in_force = data.get('time_in_force', 'day')
+    
+    if not all([symbol, qty, side]):
+        return jsonify({'error': 'Missing order parameters'}), 400
+        
+    try:
+        payload = {
+            "symbol": symbol,
+            "qty": qty,
+            "side": side,
+            "type": type,
+            "time_in_force": time_in_force
+        }
+        
+        response = requests.post(
+            f"{ALPACA_BROKER_URL}/trading/accounts/{current_user.alpaca_account_id}/orders",
+            json=payload,
+            headers=get_alpaca_headers()
+        )
+        
+        if response.status_code in [200, 201]:
+            return jsonify(response.json())
+        else:
+            # Pass the error from Alpaca back to frontend
+            error_data = response.json() if response.content else {'message': response.text}
+            return jsonify({'error': 'Order failed', 'details': error_data}), response.status_code
+            
+    except Exception as e:
+        print(f"Order Error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

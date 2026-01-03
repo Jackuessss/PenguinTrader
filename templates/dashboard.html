@@ -277,11 +277,13 @@
 
                     <!-- Buy/Sell Panel -->
                     <div class="mt-8 flex space-x-2">
-                        <div class="w-1/2 p-4 bg-primary rounded-lg">
+                        <div onclick="openOrderModal('sell')"
+                            class="w-1/2 p-4 bg-primary rounded-lg cursor-pointer hover:opacity-90 transition-opacity">
                             <div class="text-sm text-gray-200 mb-2">SELL</div>
                             <div id="detail-sell-price" class="text-2xl text-white">Loading...</div>
                         </div>
-                        <div class="w-1/2 p-4 bg-primary rounded-lg text-right">
+                        <div onclick="openOrderModal('buy')"
+                            class="w-1/2 p-4 bg-primary rounded-lg text-right cursor-pointer hover:opacity-90 transition-opacity">
                             <div class="text-sm text-gray-200 mb-2">BUY</div>
                             <div id="detail-buy-price" class="text-2xl text-white">Loading...</div>
                         </div>
@@ -628,6 +630,169 @@
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- PLACE ORDER MODAL (New) -->
+    <!-- ========================================== -->
+    <div id="place-order-modal" class="fixed inset-0 z-[70] hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" id="place-order-backdrop"></div>
+
+        <!-- Modal Content -->
+        <div
+            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-[400px] bg-[#0E131B] rounded-2xl shadow-2xl border border-gray-800 overflow-hidden flex flex-col font-sans">
+
+            <!-- Header -->
+            <div class="p-4 text-center relative border-b border-gray-800">
+                <button id="close-place-order-btn"
+                    class="absolute left-4 top-4 text-gray-400 hover:text-white transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <h2 class="font-bold text-lg text-white" id="order-modal-title">Natural gas-26Jan26</h2>
+                <div class="flex items-center justify-center space-x-2 mt-1">
+                    <span class="text-[10px] font-bold tracking-wider text-gray-500 uppercase"
+                        id="market-status-text">Market Closed</span>
+                    <div class="w-2 h-2 rounded-full bg-gray-500" id="market-status-dot"></div>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-6">
+
+                <!-- Buy/Sell Toggle -->
+                <div class="flex bg-[#161C26] rounded-lg overflow-hidden relative h-14 cursor-pointer"
+                    id="trade-toggle">
+                    <!-- Sell Side -->
+                    <div class="flex-1 flex flex-col justify-center px-4 transition-colors duration-300 group"
+                        id="modal-btn-sell">
+                        <span class="text-xs font-bold text-gray-400 group-hover:text-white">SELL</span>
+                        <span class="text-lg font-bold text-white" id="modal-price-sell">3.639</span>
+                    </div>
+
+                    <!-- Center Icon -->
+                    <div
+                        class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-[#0E131B] p-1 rounded-full">
+                        <div class="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center">
+                            <!-- Placeholder icon -->
+                            <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Buy Side -->
+                    <div class="flex-1 flex flex-col justify-center items-end px-4 transition-colors duration-300 group bg-[#00A4EF] text-white"
+                        id="modal-btn-buy">
+                        <span class="text-xs font-bold opacity-80">BUY</span>
+                        <span class="text-lg font-bold" id="modal-price-buy">3.643</span>
+                    </div>
+                </div>
+
+                <!-- Value Input -->
+                <div class="text-center space-y-1">
+                    <div class="text-sm text-gray-400 font-medium">Value</div>
+                    <div class="flex items-center justify-center space-x-2">
+                        <span class="text-2xl text-gray-500">$</span>
+                        <input type="number" id="order-value-input" value="1000"
+                            class="bg-transparent text-4xl font-bold text-white text-center w-48 focus:outline-none placeholder-gray-600">
+                    </div>
+
+                    <div class="text-sm text-gray-400">
+                        ~<span id="order-units-display">0.00</span> units
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        Balance: <span id="order-balance-display">$0.00</span>
+                    </div>
+                </div>
+
+                <!-- Percentage Pills -->
+                <div class="flex justify-between space-x-2">
+                    <button
+                        class="pct-btn flex-1 bg-[#161C26] hover:bg-[#1E2530] py-2 rounded-full text-xs font-bold text-[#00A4EF] transition"
+                        data-pct="0.25">25%</button>
+                    <button
+                        class="pct-btn flex-1 bg-[#161C26] hover:bg-[#1E2530] py-2 rounded-full text-xs font-bold text-[#00A4EF] transition"
+                        data-pct="0.50">50%</button>
+                    <button
+                        class="pct-btn flex-1 bg-[#161C26] hover:bg-[#1E2530] py-2 rounded-full text-xs font-bold text-[#00A4EF] transition"
+                        data-pct="0.75">75%</button>
+                    <button
+                        class="pct-btn flex-1 bg-[#161C26] hover:bg-[#1E2530] py-2 rounded-full text-xs font-bold text-[#00A4EF] transition"
+                        data-pct="1.00">100%</button>
+                </div>
+
+                <!-- Footer Links -->
+                <div class="text-center">
+                    <button id="open-order-details-btn"
+                        class="text-sm text-gray-400 underline hover:text-white transition">Order details</button>
+                </div>
+
+                <!-- Submit Button -->
+                <button id="confirm-order-btn"
+                    class="w-full bg-[#00A4EF] hover:bg-sky-500 text-white font-bold py-4 rounded-3xl shadow-lg shadow-[#00A4EF]/20 transition-all transform active:scale-95 flex items-center justify-center">
+                    <span id="confirm-order-text">Place Buy order</span>
+                    <svg id="confirm-order-spinner" class="animate-spin ml-2 h-5 w-5 text-white hidden"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ORDER DETAILS MODAL (New) -->
+    <!-- ========================================== -->
+    <div id="order-details-modal" class="fixed inset-0 z-[80] hidden">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" id="order-details-backdrop"></div>
+
+        <div
+            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-[400px] bg-[#0E131B] rounded-2xl shadow-2xl border border-gray-800 overflow-hidden flex flex-col p-6 font-sans">
+
+            <div class="flex justify-between items-center mb-6">
+                <button id="close-order-details-btn" class="text-gray-400 hover:text-white transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <h3 class="text-lg font-bold text-white">Order details</h3>
+                <div class="w-6"></div> <!-- Spacer -->
+            </div>
+
+            <div class="space-y-4 text-sm">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400 font-bold text-xs uppercase">Est. Price</span>
+                    <span class="font-bold text-white text-base" id="detail-est-price">$0.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400 font-bold text-xs uppercase">Units</span>
+                    <span class="font-bold text-white text-base" id="detail-est-units">0.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400 font-bold text-xs uppercase underline decoration-dashed">Total
+                        Value</span>
+                    <span class="font-bold text-white text-base" id="detail-total-value">$0.00</span>
+                </div>
+            </div>
+
+            <div class="mt-8 mb-6 text-xs text-gray-500 leading-relaxed text-center">
+                Figures are estimates. Final values depend on the execution price.
+            </div>
+
+            <button id="close-order-details-main-btn"
+                class="w-full bg-[#00A4EF] hover:bg-sky-500 text-white font-bold py-3 rounded-full transition-colors">
+                Close
+            </button>
+
         </div>
     </div>
 

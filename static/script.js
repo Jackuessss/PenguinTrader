@@ -1665,3 +1665,221 @@ async function saveWatchlistItemsOrder() {
         console.error('Error reordering items:', e);
     }
 }
+
+
+// ==========================================
+// TRADING COMPONENT LOGIC
+// ==========================================
+
+let tradeState = {
+    symbol: null,
+    side: 'buy', // 'buy' or 'sell'
+    qty: 0,
+    price: 0
+};
+
+// Expose to window for the HTML onclick handlers
+window.openOrderModal = function (initialSide = 'buy') {
+    // Try to get symbol from global or DOM
+    let symbol = window.currentSymbol;
+    if (!symbol) {
+        const symbolEl = document.getElementById('detail-symbol');
+        if (symbolEl) symbol = symbolEl.textContent.trim();
+    }
+
+    if (!symbol || symbol === '-' || symbol === 'Loading...') {
+        alert("Please select a stock first.");
+        return;
+    }
+
+    // Set global for consistency
+    window.currentSymbol = symbol;
+
+    // Get current stock data
+    const stock = window.allStocks.find(s => s.symbol === symbol);
+    if (!stock) {
+        console.error("Stock data not found for", symbol);
+        return;
+    }
+
+    tradeState.symbol = currentSymbol;
+    tradeState.price = stock.price;
+    tradeState.side = initialSide;
+
+    // Update UI elements
+    updateOrderModalUI();
+
+    // Show Modal
+    const modal = document.getElementById('place-order-modal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+function closeOrderModal() {
+    const modal = document.getElementById('place-order-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function updateOrderModalUI() {
+    if (!tradeState.symbol) return;
+
+    // Title
+    const titleEl = document.getElementById('order-modal-title');
+    if (titleEl) titleEl.textContent = tradeState.symbol;
+
+    // Prices (simulated spread)
+    const priceSell = document.getElementById('modal-price-sell');
+    const priceBuy = document.getElementById('modal-price-buy');
+
+    // In a real app we would have separate bid/ask, here using last price +/- tiny spread
+    const displayPrice = tradeState.price;
+    if (priceSell) priceSell.textContent = (displayPrice - 0.01).toFixed(2);
+    if (priceBuy) priceBuy.textContent = (displayPrice + 0.01).toFixed(2);
+
+    // Active Toggle Color
+    const btnBuy = document.getElementById('modal-btn-buy');
+    const btnSell = document.getElementById('modal-btn-sell');
+    const confirmBtn = document.getElementById('confirm-order-btn');
+    const confirmText = document.getElementById('confirm-order-text');
+
+    if (tradeState.side === 'buy') {
+        // Buy Active
+        btnBuy.className = "flex-1 flex flex-col justify-center items-end px-4 transition-colors duration-300 group bg-[#00A4EF] text-white";
+
+        btnSell.className = "flex-1 flex flex-col justify-center px-4 transition-colors duration-300 group cursor-pointer";
+        // Reset sell styles requires removing specific classes if using pure atomic, 
+        // but here we just ensure bg is default dark-ish or transparent. 
+        // We defined structure in HTML, let's keep it simple.
+
+        confirmBtn.className = "w-full bg-[#00A4EF] hover:bg-sky-500 text-white font-bold py-4 rounded-3xl shadow-lg shadow-[#00A4EF]/20 transition-all transform active:scale-95 flex items-center justify-center";
+        confirmText.textContent = `Place Buy Order`;
+    } else {
+        // Sell Active
+        btnSell.className = "flex-1 flex flex-col justify-center px-4 transition-colors duration-300 group bg-red-500 text-white";
+
+        btnBuy.className = "flex-1 flex flex-col justify-center items-end px-4 transition-colors duration-300 group cursor-pointer opacity-50 hover:opacity-100";
+
+        confirmBtn.className = "w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-3xl shadow-lg shadow-red-500/20 transition-all transform active:scale-95 flex items-center justify-center";
+        confirmText.textContent = `Place Sell Order`;
+    }
+
+    // Recalculate Units
+    calculateOrderUnits();
+}
+
+function calculateOrderUnits() {
+    const inputEl = document.getElementById('order-value-input');
+    const unitsDisplay = document.getElementById('order-units-display');
+
+    if (!inputEl || !unitsDisplay) return;
+
+    const value = parseFloat(inputEl.value) || 0;
+    const price = tradeState.price || 1; // avoid div by zero
+
+    const units = value / price;
+    tradeState.qty = units; // store exact calc
+
+    unitsDisplay.textContent = units.toFixed(4);
+
+    // Update Detail Modal Estimates too if open
+    const detailEstPrice = document.getElementById('detail-est-price');
+    const detailEstUnits = document.getElementById('detail-est-units');
+    const detailTotal = document.getElementById('detail-total-value');
+
+    if (detailEstPrice) detailEstPrice.textContent = `$${price.toFixed(2)}`;
+    if (detailEstUnits) detailEstUnits.textContent = units.toFixed(4);
+    if (detailTotal) detailTotal.textContent = `$${value.toFixed(2)}`;
+}
+
+// SETUP LISTENERS FOR TRADING
+document.addEventListener('DOMContentLoaded', () => {
+
+    // Close buttons
+    const closeOrderBtn = document.getElementById('close-place-order-btn');
+    const orderBackdrop = document.getElementById('place-order-backdrop');
+    if (closeOrderBtn) closeOrderBtn.onclick = closeOrderModal;
+    if (orderBackdrop) orderBackdrop.onclick = closeOrderModal;
+
+    // Toggle Side
+    const btnBuy = document.getElementById('modal-btn-buy');
+    const btnSell = document.getElementById('modal-btn-sell');
+    if (btnBuy) btnBuy.onclick = () => { tradeState.side = 'buy'; updateOrderModalUI(); };
+    if (btnSell) btnSell.onclick = () => { tradeState.side = 'sell'; updateOrderModalUI(); };
+
+    // Input Change
+    const inputEl = document.getElementById('order-value-input');
+    if (inputEl) inputEl.oninput = calculateOrderUnits;
+
+    // Percentage Buttons
+    document.querySelectorAll('.pct-btn').forEach(btn => {
+        btn.onclick = () => {
+            const pct = parseFloat(btn.dataset.pct);
+            // In a real app we'd need account buying power. Mocking $10k for now.
+            const buyingPower = 10000;
+            inputEl.value = (buyingPower * pct).toFixed(2);
+            calculateOrderUnits();
+        };
+    });
+
+    // Confirm Order
+    const confirmBtn = document.getElementById('confirm-order-btn');
+    if (confirmBtn) {
+        confirmBtn.onclick = async () => {
+            const spinner = document.getElementById('confirm-order-spinner');
+            const text = document.getElementById('confirm-order-text');
+
+            // Loading
+            confirmBtn.disabled = true;
+            if (spinner) spinner.classList.remove('hidden');
+            if (text) text.textContent = "Processing...";
+
+            try {
+                const payload = {
+                    symbol: tradeState.symbol,
+                    qty: tradeState.qty, // Alpaca allows fractional
+                    side: tradeState.side,
+                    type: 'market',
+                    time_in_force: 'day'
+                };
+
+                const res = await fetch('/api/order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    alert(`Order Submitted!\nID: ${data.id}\nStatus: ${data.status}`);
+                    closeOrderModal();
+                } else {
+                    alert(`Order Failed: ${data.details?.message || data.error}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Network error submitting order.");
+            } finally {
+                confirmBtn.disabled = false;
+                if (spinner) spinner.classList.add('hidden');
+                updateOrderModalUI(); // resets text
+            }
+        };
+    }
+
+    // Order Details Modal
+    const detailsBtn = document.getElementById('open-order-details-btn');
+    const detailsModal = document.getElementById('order-details-modal');
+    const detailsBackdrop = document.getElementById('order-details-backdrop');
+    const closeDetailsBtn = document.getElementById('close-order-details-btn');
+    const closeDetailsMainBtn = document.getElementById('close-order-details-main-btn');
+
+    const toggleDetails = (show) => {
+        if (show) detailsModal.classList.remove('hidden');
+        else detailsModal.classList.add('hidden');
+    };
+
+    if (detailsBtn) detailsBtn.onclick = () => toggleDetails(true);
+    if (detailsBackdrop) detailsBackdrop.onclick = () => toggleDetails(false);
+    if (closeDetailsBtn) closeDetailsBtn.onclick = () => toggleDetails(false);
+    if (closeDetailsMainBtn) closeDetailsMainBtn.onclick = () => toggleDetails(false);
+});
