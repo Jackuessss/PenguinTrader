@@ -112,6 +112,67 @@ def get_alpaca_headers():
         "Authorization": f"Basic {base64.b64encode(f'{ALPACA_BROKER_KEY}:{ALPACA_BROKER_SECRET}'.encode()).decode()}"
     }
 
+def fund_new_account(alpaca_id):
+    """
+    Fund the new account with $50,000 from the sweep account.
+    """
+    try:
+        # Wait a moment for the account to be fully active in Sandbox
+        time.sleep(1)
+        
+        payload = {
+            "entry_type": "JNLC",
+            "from_account": "9896d9b1-fb81-335b-b527-9048f681465f",
+            "to_account": alpaca_id,
+            "amount": "50000",
+            "description": "Initial Signup Balance"
+        }
+        
+        response = requests.post(
+            f"{ALPACA_BROKER_URL}/journals",
+            json=payload,
+            headers=get_alpaca_headers()
+        )
+        
+        if response.status_code in [200, 201]:
+            print(f"Account {alpaca_id} funded with $50,000")
+            return True
+        else:
+            print(f"Funding Failed: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"Funding Error: {e}")
+        return False
+
+@app.route('/api/account_info', methods=['GET'])
+@login_required
+def get_account_info():
+    if not current_user.alpaca_account_id:
+        return jsonify({'error': 'No trading account found'}), 400
+        
+    try:
+        response = requests.get(
+            f"{ALPACA_BROKER_URL}/trading/accounts/{current_user.alpaca_account_id}/account",
+            headers=get_alpaca_headers()
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Extract relevant fields
+            return jsonify({
+                'cash': data.get('cash'),
+                'buying_power': data.get('buying_power'),
+                'equity': data.get('equity'),
+                'currency': data.get('currency', 'USD')
+            })
+        else:
+            return jsonify({'error': 'Failed to fetch account info', 'details': response.text}), response.status_code
+            
+    except Exception as e:
+        print(f"Account Info Error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 # Initialize Supabase client only if credentials are available
 supabase = None
 if SUPABASE_URL and SUPABASE_KEY:
@@ -269,6 +330,10 @@ def signup_user(email, password, first_name, last_name, terms):
             alpaca_data = response.json()
             alpaca_account_id = alpaca_data.get('id')
             print(f"Alpaca Account Created: {alpaca_account_id}")
+            
+            # FUND THE ACCOUNT
+            fund_new_account(alpaca_account_id)
+            
         else:
             print(f"Alpaca Signup Failed: {response.text}")
             # In a real app, we might want to block signup, but for partial migration

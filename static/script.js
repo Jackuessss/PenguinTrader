@@ -1852,6 +1852,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok) {
                     alert(`Order Submitted!\nID: ${data.id}\nStatus: ${data.status}`);
                     closeOrderModal();
+                    // Refresh balance immediately after trade
+                    updateDashboardBalance();
                 } else {
                     alert(`Order Failed: ${data.details?.message || data.error}`);
                 }
@@ -1882,4 +1884,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (detailsBackdrop) detailsBackdrop.onclick = () => toggleDetails(false);
     if (closeDetailsBtn) closeDetailsBtn.onclick = () => toggleDetails(false);
     if (closeDetailsMainBtn) closeDetailsMainBtn.onclick = () => toggleDetails(false);
+
+    // Initial Balance Load
+    updateDashboardBalance();
 });
+
+// ==========================================
+// BALANCE UPDATER
+// ==========================================
+async function updateDashboardBalance() {
+    const balanceEl = document.getElementById('balance');
+    const orderBalanceDetail = document.getElementById('order-balance-display'); // Also update in modal if exists
+
+    if (!balanceEl) return;
+
+    try {
+        const res = await fetch('/api/account_info');
+        if (res.ok) {
+            const data = await res.json();
+            const equity = parseFloat(data.equity || 0);
+
+            // Update Header Balance
+            balanceEl.textContent = equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            // Update Order Modal Balance display if it exists
+            if (orderBalanceDetail) {
+                // Assuming modal shows full currency string e.g. "$50,000.00"
+                orderBalanceDetail.textContent = `$${equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }
+        }
+    } catch (e) {
+        console.error("Failed to fetch balance:", e);
+    }
+}
