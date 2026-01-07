@@ -204,6 +204,9 @@ function renderStockList(stocks) {
         div.className = 'p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b dark:border-gray-700 border-gray-200';
         div.setAttribute('data-symbol', stock.symbol);
 
+        // Check if we have price data
+        const hasData = stock.price !== undefined && stock.price !== null;
+
         div.innerHTML = `
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
@@ -216,9 +219,13 @@ function renderStockList(stocks) {
                     </div>
                 </div>
                 <div class="text-right">
-                    <div class="font-semibold">$${(stock.price || 0).toFixed(2)}</div>
-                    <div class="text-xs text-positive">
-                        +0.00%
+                    <div class="font-semibold">
+                        ${hasData ? '$' + formatPrice(stock.price) : '<div class="h-4 w-20 bg-gray-700 rounded animate-pulse mb-1"></div>'}
+                    </div>
+                    <div class="text-xs ${stock.isPositive ? 'text-positive' : 'text-negative'}">
+                         ${hasData
+                ? (stock.isPositive ? '+' : '') + formatPrice(stock.changePercent) + '%'
+                : '<div class="h-3 w-16 bg-gray-700 rounded animate-pulse ml-auto"></div>'}
                     </div>
                 </div>
             </div>
@@ -1026,15 +1033,30 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('detail-name').textContent = stock.name;
         document.getElementById('detail-symbol').textContent = stock.symbol;
 
-        const changeElement = document.getElementById('detail-change');
-        const changeText = `${stock.isPositive ? '+' : ''}${formatPrice(stock.changePercent)}% (${stock.isPositive ? '+' : ''}${formatPrice(stock.change)})`;
-        changeElement.textContent = changeText;
-        changeElement.className = stock.isPositive ? 'text-positive' : 'text-negative';
+        // Check if we have price data
+        const hasData = stock.price !== undefined && stock.price !== null;
 
-        document.getElementById('detail-sell-price').textContent = `$${formatPrice(stock.price)}`;
-        document.getElementById('detail-buy-price').textContent = `$${formatPrice(stock.price + 0.03)}`;
+        const changeElement = document.getElementById('detail-change');
+
+        if (hasData) {
+            const changeText = `${stock.isPositive ? '+' : ''}${formatPrice(stock.changePercent)}% (${stock.isPositive ? '+' : ''}${formatPrice(stock.change)})`;
+            changeElement.textContent = changeText;
+            changeElement.className = stock.isPositive ? 'text-positive' : 'text-negative';
+
+            document.getElementById('detail-sell-price').textContent = `$${formatPrice(stock.price)}`;
+            document.getElementById('detail-buy-price').textContent = `$${formatPrice(stock.price + 0.03)}`;
+        } else {
+            // Loading State
+            changeElement.innerHTML = '<div class="h-4 w-32 bg-gray-700 rounded animate-pulse inline-block"></div>';
+            changeElement.className = '';
+
+            document.getElementById('detail-sell-price').innerHTML = '<div class="h-8 w-32 bg-primary/50 rounded animate-pulse"></div>';
+            document.getElementById('detail-buy-price').innerHTML = '<div class="h-8 w-32 bg-primary/50 rounded animate-pulse ml-auto"></div>';
+        }
 
         // Update chart
+        // If no data, updateChart might show empty or previous.
+        // We will call it anyway, but handle empty inside it if needed
         updateChart(stock.symbol);
     }
 
@@ -1044,59 +1066,98 @@ document.addEventListener('DOMContentLoaded', () => {
     // Socket.IO and TradingView Integration
     // ==========================================
 
+    // ==========================================
+    // Pusher Integration
+    // ==========================================
+
     // Global Chart Variables
     let tvChart = null;
     let tvCandleSeries = null;
     let currentSymbol = null;
 
-    // Connect to Render Backend
-    const socket = io('https://penguin-trader-render-backend.onrender.com/');
-
-    socket.on('connect', () => {
-        console.log('Connected to Render Backend');
+    // Initialize Pusher
+    const pusher = new Pusher('39e54490575c3661ea36', {
+        cluster: 'eu'
     });
 
-    socket.on('price_update', (data) => {
-        // console.log('Price update received:', data);
+    const channel = pusher.subscribe('market-data');
+
+    channel.bind('batch-update', function (batchData) {
+        // console.log('Batch update received:', batchData);
+        if (Array.isArray(batchData)) {
+            batchData.forEach(data => updateStockUI(data));
+        } else {
+            console.warn('Received non-array data:', batchData);
+            updateStockUI(batchData);
+        }
+    });
+
+    function updateStockUI(data) {
+        if (!data || !data.symbol) return;
+
         const price = parseFloat(data.price);
+        const change = parseFloat(data.change || 0);
+        const changePercent = parseFloat(data.change_percent || 0);
+
         if (isNaN(price)) return;
 
         // 1. Update the Stock List Item
         const stockItem = document.querySelector(`#stock-list div[data-symbol="${data.symbol}"]`);
         if (stockItem) {
-            const priceEl = stockItem.querySelector('.font-semibold');
-            if (priceEl) {
-                // Flash effect can be added here if needed
-                priceEl.textContent = `$${formatPrice(price)}`;
+            stockItem.classList.add('bg-slate-700', 'transition-colors', 'duration-300');
+            setTimeout(() => stockItem.classList.remove('bg-slate-700'), 300);
 
-                // Animate color based on movement (simple check against previous text content or similar)
+            const priceEl = stockItem.querySelector('.font-semibold');
+            if (priceEl) priceEl.textContent = `$${formatPrice(price)}`;
+
+            const changeEl = stockItem.querySelector('.text-xs:last-child');
+            if (changeEl) {
+                const isPositive = change >= 0;
+                changeEl.className = `text-xs ${isPositive ? 'text-positive' : 'text-negative'}`;
+                const sign = isPositive ? '+' : '';
+                changeEl.textContent = `${sign}${formatPrice(change)} (${sign}${formatPrice(changePercent)}%)`;
             }
         }
 
-        // 2. Update the Detail View if this is the current symbol
+        // 2. Update Detail View
         if (currentSymbol && data.symbol === currentSymbol) {
+            const sellPrice = data.bid || price;
+            const buyPrice = data.ask || (price + 0.03);
+            
             const sellEl = document.getElementById('detail-sell-price');
             const buyEl = document.getElementById('detail-buy-price');
+            if (sellEl) sellEl.textContent = `$${formatPrice(sellPrice)}`;
+            if (buyEl) buyEl.textContent = `$${formatPrice(buyPrice)}`;
 
-            if (sellEl) sellEl.textContent = `$${formatPrice(price)}`;
-            if (buyEl) buyEl.textContent = `$${formatPrice(price + 0.03)}`; // Simulated spread
+            const detailChangeEl = document.getElementById('detail-change');
+            if (detailChangeEl) {
+                const isPositive = change >= 0;
+                const sign = isPositive ? '+' : '';
+                detailChangeEl.textContent = `${sign}${formatPrice(changePercent)}% (${sign}${formatPrice(change)})`;
+                detailChangeEl.className = isPositive ? 'text-positive' : 'text-negative';
+            }
 
-            // 3. Update Chart
-            if (tvCandleSeries) {
-                const dataList = tvCandleSeries.data();
+            if (window.tvCandleSeries) {
+                const dataList = window.tvCandleSeries.data();
                 if (dataList.length > 0) {
                     const lastBar = dataList[dataList.length - 1];
-                    const updatedBar = {
-                        ...lastBar,
-                        close: price,
-                        high: Math.max(lastBar.high, price),
-                        low: Math.min(lastBar.low, price)
-                    };
-                    tvCandleSeries.update(updatedBar);
+                    const updatedBar = { ...lastBar, close: price, high: Math.max(lastBar.high, price), low: Math.min(lastBar.low, price) };
+                    window.tvCandleSeries.update(updatedBar);
                 }
             }
         }
-    });
+
+        // 3. Update Order Modal
+        const orderModal = document.getElementById('place-order-modal');
+        if (orderModal && !orderModal.classList.contains('hidden') && currentSymbol === data.symbol) {
+             const sellPrice = data.bid || price;
+             const buyPrice = data.ask || (price + 0.03);
+             const modalSell = document.getElementById('modal-price-sell');
+             const modalBuy = document.getElementById('modal-price-buy');
+             if (modalSell) modalSell.textContent = formatPrice(sellPrice);
+             if (modalBuy) modalBuy.textContent = formatPrice(buyPrice);
+        }
+    }
 
     // Implement missing updateChart function using Lightweight Charts
     window.updateChart = async function (symbol, days = 30) {
