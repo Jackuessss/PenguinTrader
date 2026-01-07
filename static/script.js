@@ -1,7 +1,4 @@
-// Alpha Vantage API key
-// Alpha Vantage API key
-const API_KEY = 'LA9DKLX13DQCKHV3'; // Replace with your Alpha Vantage API key
-const BACKEND_URL = 'https://penguin-trader-render-backend.onrender.com';
+
 
 // Global State
 let currentEditingWatchlistId = null;

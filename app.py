@@ -25,7 +25,6 @@ CORS(app)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "Jacques")
 
 # Load Stocks Data
-# Load Stocks Data
 try:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(BASE_DIR, 'stocks.json'), 'r') as f:
@@ -90,12 +89,6 @@ def load_user(user_id):
             user_data.get('alpaca_account_id')
         )
     return None
-
-# Get Alpha Vantage API key from environment variable
-ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY', 'demo')
-
-# Get Finnhub API key from environment variable
-FINNHUB_API_KEY = 'cvia941r01qks9q9977gcvia941r01qks9q99780'
 
 # Supabase configuration
 SUPABASE_URL = os.getenv('SUPABASE_URL')
@@ -182,40 +175,7 @@ if SUPABASE_URL and SUPABASE_KEY:
         print(f"Warning: Failed to initialize Supabase client: {e}")
         supabase = None
 
-
-def fetch_finnhub_quote(symbol):
-    try:
-        # Check cache first
-        cached_data = get_cached_quote(symbol)
-        if cached_data:
-            return cached_data
-
-        # Add delay to respect rate limits
-        time.sleep(RATE_LIMIT_DELAY)
-
-        # Get current quote from Finnhub
-        quote_url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={FINNHUB_API_KEY}"
-        quote_response = requests.get(quote_url)
-        
-        if quote_response.status_code == 429:
-            print(f"Rate limit hit for {symbol}, waiting before retry...")
-            time.sleep(2)  # Wait longer on rate limit
-            quote_response = requests.get(quote_url)
-            
-        quote_response.raise_for_status()
-        quote_data = quote_response.json()
-        
-        if quote_data and quote_data.get('c'):  # If we have current price
-            # Cache the successful response
-            set_cached_quote(symbol, quote_data)
-            return quote_data
-            
-        return None
-    except Exception as e:
-        print(f"Error fetching quote for {symbol}: {str(e)}")
-        return None
-
-# Connect to Supabase PostgreSQL
+# Connect to Supabase
 def get_supabase_connection():
     return psycopg2.connect(SUPABASE_DB_URL)
 
@@ -265,14 +225,10 @@ def signup_user(email, password, first_name, last_name, terms):
     if user:
         conn.close()
         return 'Email is already in use!'
-    
-    # ---------------------------------------------------------
-    # ALPACA SHADOW SIGNUP (Broker API)
-    # ---------------------------------------------------------
+
     alpaca_account_id = None
     try:
-        # Construct the payload with hardcoded KYC for Sandbox
-        # We use the user's real name/email, but fake identity data
+        # Uses the user's real name/email, but fake identity data
         payload = {
             "contact": {
                 "email_address": email,
@@ -336,8 +292,6 @@ def signup_user(email, password, first_name, last_name, terms):
             
         else:
             print(f"Alpaca Signup Failed: {response.text}")
-            # In a real app, we might want to block signup, but for partial migration
-            # we could proceed or return error. Let's return error to be safe.
             conn.close()
             return f'Trading Account Creation Failed: {response.text}'
 
@@ -345,15 +299,11 @@ def signup_user(email, password, first_name, last_name, terms):
         print(f"Alpaca Error: {e}")
         conn.close()
         return 'Error creating trading account.'
-
-    # ---------------------------------------------------------
-    # DB INSERTION
-    # ---------------------------------------------------------
     
     # Generate unique user_id
     user_id = str(uuid.uuid4())
     
-    # Salt the password with the user_id for extra security
+    # Salt the password with the user_id
     salted_password = password + user_id
     hashed_password = generate_password_hash(salted_password)
     
@@ -426,13 +376,7 @@ def signup():
             # Create a browser session for the new user
             user_data_row = authenticate_user(email, password)
             if user_data_row:
-                # user_data_row is a tuple from `SELECT *` in authenticate_user
-                # We need to map it correctly.
-                # authenticate_user returns `user` tuple.
-                # The User class now expects alpaca_account_id.
-                # We should refactor authenticate_user to return dict or User object, but to minimize changes:
-                # We need to fetch the full user object properly.
-                user = load_user(user_data_row[0]) # Use load_user to get the proper User object
+                user = load_user(user_data_row[0]) # Use load_user to get the User object
                 login_user(user)
                 session.permanent = False  # Session lasts until browser closes
                 session['user_id'] = user.id
@@ -461,7 +405,7 @@ def login():
         # Validates if user exists or not
         user_data_row = authenticate_user(email, password)
         if user_data_row:
-            user = load_user(user_data_row[0]) # Use load_user which handles the new schema
+            user = load_user(user_data_row[0]) # Use load_user
             login_user(user)
             # Checks if remember me is checked and if it is it creates a session
             remember = 'remember' in request.form
@@ -559,7 +503,7 @@ def terms():
 @cross_origin()
 def get_stocks():
     try:
-        # Construct the absolute path to stocks.json
+        # Construct path to stocks.json
         json_path = os.path.join(app.root_path, 'stocks.json')
         
         # Open and read the JSON file
@@ -680,20 +624,6 @@ def manage_watchlist(watchlist_id):
                 
             watchlist_name = rows[0][0]
             items = []
-            
-            # Helper to load domain from JSON if possible, or just return symbol
-            # Since we don't want to parse JSON every time, we might rely on frontend to map symbols to domains?
-            # User wants backend to provide it? The frontend `loadWatchlistItems` does `data.items` which needs `domain` etc.
-            # Actually frontend `script.js` line 851 handles `stock.domain || ...`.
-            # So we just need to return the symbols list?
-            # Wait, `script.js` line 1500 `const data = await response.json(); if (data && data.items) ...`
-            # And `renderListSettingsItems` uses `watchlist.items` which are objects or strings.
-            # If backend returns simple list of strings, frontend logic: `const name = isObject ? item.name : ...` handles it.
-            # But we want `domain`.
-            # Let's read `stocks.json` ONCE at startup and create a lookup map.
-            
-            # Build items list
-            # We filter out None symbols (if watchlist is empty, left join gives one row with None symbol)
             db_symbols = [r[1] for r in rows if r[1]]
             
             # Enrich with local JSON data
@@ -789,7 +719,6 @@ def reorder_watchlists():
     
     try:
         # Update positions
-        # Using a loop for simplicity, or we could construct a CASE statement
         for index, watchlist_id in enumerate(ordered_ids):
             cursor.execute("""
                 UPDATE watchlist 
@@ -869,9 +798,8 @@ def manage_watchlist_item():
     finally:
         conn.close()
 
-# ---------------------------------------------------------
+
 # ALPACA TRADING PROXY ROUTES
-# ---------------------------------------------------------
 
 @app.route('/api/portfolio', methods=['GET'])
 @login_required
