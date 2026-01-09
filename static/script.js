@@ -1,13 +1,13 @@
 
 
-// Global State
+// global state
 let currentEditingWatchlistId = null;
 
-// Theme toggle functionality
+// theme toggle functionality
 const themeToggle = document.getElementById('theme-toggle');
 const themeIcon = themeToggle.querySelector('svg');
 
-// Check for saved theme preference
+// check for saved theme preference
 const savedTheme = localStorage.getItem('theme');
 if (savedTheme) {
     document.documentElement.classList.toggle('dark', savedTheme === 'dark');
@@ -19,14 +19,14 @@ if (savedTheme) {
     updateThemeIcon(prefersDark);
 }
 
-// Theme toggle click handler
+// theme toggle click handler
 themeToggle.addEventListener('click', () => {
     const isDark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     updateThemeIcon(isDark);
 });
 
-// Function to update theme icon
+// function to update theme icon
 function updateThemeIcon(isDark) {
     if (isDark) {
         themeIcon.innerHTML = `
@@ -39,16 +39,16 @@ function updateThemeIcon(isDark) {
     }
 }
 
-// Set the title (remove "Stocks" text, just show the icon)
+// set the title (remove "Stocks" text, just show the icon)
 const watchlistHeader = document.getElementById('watchlist-header');
 if (watchlistHeader) {
     watchlistHeader.innerHTML = `<span id="watchlist-name">Stocks</span>`;
 }
 
-// Global watchlist variable
+// global watchlist variable
 let watchlist = new Set();
 
-// Initialize search functionality
+// initialize search functionality
 console.log('Setting up search functionality');
 const searchInput = document.getElementById('stock-search');
 const searchResults = document.getElementById('search-results');
@@ -149,7 +149,7 @@ if (searchInput && searchResults) {
     });
 }
 
-// Make selectStock available globally
+// make selectstock available globally
 window.selectStock = function (symbol) {
     console.log('Select stock called for:', symbol);
     const searchInput = document.getElementById('stock-search');
@@ -187,7 +187,7 @@ window.selectStock = function (symbol) {
 
 
 
-// Helper to render the list
+// helper to render the list
 function renderStockList(stocks) {
     const stockListEl = document.getElementById('stock-list');
     if (!stockListEl) return;
@@ -249,7 +249,7 @@ function renderStockList(stocks) {
 }
 
 
-// Watchlist Global State
+// watchlist global state
 window.userWatchlists = []; // [{id, name, items: ['AAPL']}]
 window.activeWatchlistId = null; // null means 'all', or a specific UUID
 
@@ -264,9 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// ==========================================
-// Dynamic Watchlist Logic
-// ==========================================
+// dynamic watchlist logic
 
 async function fetchWatchlists() {
     try {
@@ -505,9 +503,7 @@ watchlistNameInput.onkeypress = (e) => {
     }
 };
 
-// ==========================================
-// Home Settings / Reorder Modal Logic
-// ==========================================
+// home settings / reorder modal logic
 const homeSettingsModal = document.getElementById('home-settings-modal');
 const closeHomeSettingsBtn = document.getElementById('close-home-settings-btn');
 const homeSettingsBackdrop = document.getElementById('home-settings-backdrop');
@@ -823,11 +819,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    /**
-     * In a full application, the following functions would be implemented to fetch data from Alpha Vantage API
-     */
+    // in a full application, the following functions would be implemented to fetch data from the chosen api
 
-    // Function to show error message
+    // function to show error message
     function showError(message) {
         const errorDiv = document.createElement('div');
         errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
@@ -839,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     }
 
-    // Function to fetch stock price with better error handling
+    // function to fetch stock price with better error handling
     async function fetchStockPrice(symbol) {
         try {
             const response = await fetch(`${BACKEND_URL}/api/stock/${symbol}`);
@@ -877,7 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Function to fetch intraday data for chart
+    // function to fetch intraday data for chart
     async function fetchIntradayData(symbol, interval = '5min') {
         try {
             const response = await fetch(`${BACKEND_URL}/api/intraday/${symbol}?interval=${interval}`);
@@ -913,7 +907,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Function to fetch daily data for chart
+    // function to fetch daily data for chart
     async function fetchDailyData(symbol) {
         try {
             const response = await fetch(`${BACKEND_URL}/api/daily/${symbol}`);
@@ -949,7 +943,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Function to add a stock to the list
+    // function to add a stock to the list
     async function addStockToList(symbol) {
         try {
             const response = await fetch(`${BACKEND_URL}/api/search?q=${encodeURIComponent(symbol)}`);
@@ -1017,12 +1011,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Function to format price
+    // function to format price
     function formatPrice(price) {
         return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
 
-    // Function to show stock detail
+    // function to show stock detail
     function showStockDetail(stock) {
         const detailSection = document.getElementById('stock-detail');
         if (!detailSection) return;
@@ -1062,9 +1056,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    // ==========================================
-    // Socket.IO and TradingView Integration
-    // ==========================================
+    // real-time data integration
 
     // ==========================================
     // Pusher Integration
@@ -1123,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSymbol && data.symbol === currentSymbol) {
             const sellPrice = data.bid || price;
             const buyPrice = data.ask || (price + 0.03);
-            
+
             const sellEl = document.getElementById('detail-sell-price');
             const buyEl = document.getElementById('detail-buy-price');
             if (sellEl) sellEl.textContent = `$${formatPrice(sellPrice)}`;
@@ -1150,12 +1142,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. Update Order Modal
         const orderModal = document.getElementById('place-order-modal');
         if (orderModal && !orderModal.classList.contains('hidden') && currentSymbol === data.symbol) {
-             const sellPrice = data.bid || price;
-             const buyPrice = data.ask || (price + 0.03);
-             const modalSell = document.getElementById('modal-price-sell');
-             const modalBuy = document.getElementById('modal-price-buy');
-             if (modalSell) modalSell.textContent = formatPrice(sellPrice);
-             if (modalBuy) modalBuy.textContent = formatPrice(buyPrice);
+            const sellPrice = data.bid || price;
+            const buyPrice = data.ask || (price + 0.03);
+            const modalSell = document.getElementById('modal-price-sell');
+            const modalBuy = document.getElementById('modal-price-buy');
+            if (modalSell) modalSell.textContent = formatPrice(sellPrice);
+            if (modalBuy) modalBuy.textContent = formatPrice(buyPrice);
         }
     }
 

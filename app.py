@@ -15,16 +15,16 @@ import time
 import json
 import base64
 
-# Load environment variables
+# load environment variables
 load_dotenv()
 
-# Initialize Flask app
+# initialize flask app
 app = Flask(__name__)
-# Enable CORS for all routes (or restrict as needed)
+# enable cors
 CORS(app)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "Jacques")
 
-# Load Stocks Data
+# load stocks data
 try:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(BASE_DIR, 'stocks.json'), 'r') as f:
@@ -33,12 +33,12 @@ except Exception as e:
     print(f"Error loading stocks.json: {e}")
     STOCKS_DATA = []
 
-# Initialize Flask-Login
+# initialize flask-login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# User class for Flask-Login
+# user class for flask-login
 class User(UserMixin):
     def __init__(self, user_id, email, first_name, last_name, alpaca_account_id=None):
         self.id = user_id
@@ -95,7 +95,7 @@ SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 SUPABASE_DB_URL = os.getenv('SUPABASE_DB_URL')
 
-# Alpaca Broker Configuration
+# alpaca broker configuration
 ALPACA_BROKER_URL = os.getenv('ALPACA_BROKER_URL', 'https://broker-api.sandbox.alpaca.markets/v1')
 ALPACA_BROKER_KEY = os.getenv('ALPACA_BROKER_KEY')
 ALPACA_BROKER_SECRET = os.getenv('ALPACA_BROKER_SECRET')
@@ -105,10 +105,8 @@ def get_alpaca_headers():
         "Authorization": f"Basic {base64.b64encode(f'{ALPACA_BROKER_KEY}:{ALPACA_BROKER_SECRET}'.encode()).decode()}"
     }
 
+# fund the new account with 50k
 def fund_new_account(alpaca_id):
-    """
-    Fund the new account with $50,000 from the sweep account.
-    """
     try:
         # Wait a moment for the account to be fully active in Sandbox
         time.sleep(1)
@@ -166,7 +164,7 @@ def get_account_info():
         print(f"Account Info Error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-# Initialize Supabase client only if credentials are available
+# initialize supabase client
 supabase = None
 if SUPABASE_URL and SUPABASE_KEY:
     try:
@@ -175,7 +173,7 @@ if SUPABASE_URL and SUPABASE_KEY:
         print(f"Warning: Failed to initialize Supabase client: {e}")
         supabase = None
 
-# Connect to Supabase
+# connect to supabase
 def get_supabase_connection():
     return psycopg2.connect(SUPABASE_DB_URL)
 
@@ -183,14 +181,14 @@ def init_supabase_db():
     conn = get_supabase_connection()
     cursor = conn.cursor()
     
-    # Create users table
+    # create users table
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                         user_id TEXT PRIMARY KEY,
                         email TEXT UNIQUE NOT NULL,
                         password_hash TEXT NOT NULL,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)''')
     
-    # Create watchlist table
+    # create watchlist table
     cursor.execute('''CREATE TABLE IF NOT EXISTS watchlist (
                         watchlist_id TEXT PRIMARY KEY,
                         user_id TEXT NOT NULL,
@@ -198,7 +196,7 @@ def init_supabase_db():
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY (user_id) REFERENCES users(user_id))''')
     
-    # Create watchlist_items table
+    # create watchlist items table
     cursor.execute('''CREATE TABLE IF NOT EXISTS watchlist_items (
                         watchlist_id TEXT NOT NULL,
                         stock_symbol TEXT NOT NULL,
@@ -208,12 +206,9 @@ def init_supabase_db():
 
 
 
-# Initialize the database
+# initialize the database
 init_supabase_db()
 
-# SparkPost configuration
-SPARKPOST_API_KEY = os.getenv("SPARKPOST_API_KEY")
-SPARKPOST_FROM_EMAIL = os.getenv("SPARKPOST_FROM_EMAIL")
 
 def signup_user(email, password, first_name, last_name, terms):
     conn = get_supabase_connection()
@@ -228,7 +223,7 @@ def signup_user(email, password, first_name, last_name, terms):
 
     alpaca_account_id = None
     try:
-        # Uses the user's real name/email, but fake identity data
+        # uses the user's real name/email, but fake identity data
         payload = {
             "contact": {
                 "email_address": email,
@@ -300,7 +295,7 @@ def signup_user(email, password, first_name, last_name, terms):
         conn.close()
         return 'Error creating trading account.'
     
-    # Generate unique user_id
+    # generate unique user_id
     user_id = str(uuid.uuid4())
     
     # Salt the password with the user_id
@@ -340,7 +335,7 @@ def authenticate_user(email, password):
     cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
     user = cursor.fetchone()
     conn.close()
-    # Checks against database
+    # checks against database
     if user:
         salted_password = password + user[0]
         if check_password_hash(user[4], salted_password):
@@ -427,62 +422,9 @@ def logout():
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
 
-@app.route('/resetpassword', methods=['GET', 'POST'])
-def resetpassword():
-    if request.method == 'POST':
-        reset_code = request.form['reset_code']
-        new_password = request.form['new_password']
-        confirm_password = request.form['confirm_password']
 
-        if new_password != confirm_password:
-            flash('Passwords do not match!', 'error')
-            return redirect(url_for('resetpassword'))
 
-        conn = get_supabase_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE reset_code = %s", (reset_code,))
-        user = cursor.fetchone()
 
-        if user:
-            salted_password = new_password + user[0]
-            hashed_password = generate_password_hash(salted_password)
-
-            cursor.execute("UPDATE users SET password_hash = %s, reset_code = NULL WHERE id = %s", (hashed_password, user[0]))
-            conn.commit()
-            conn.close()
-
-            flash('Password reset successful! Please log in.', 'success')
-            return redirect(url_for('login'))
-        else:
-            flash('Invalid reset code.', 'error')
-
-    return render_template('resetpassword.html')
-
-@app.route('/forgotpasswordemail', methods=['GET', 'POST'])
-def forgotpasswordemail():
-    if request.method == 'POST':
-        email = request.form['email']
-
-        conn = get_supabase_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-        user = cursor.fetchone()
-
-        if user:
-            reset_code = generate_reset_code()
-            cursor.execute("UPDATE users SET reset_code = %s WHERE email = %s", (reset_code, email))
-            conn.commit()
-            conn.close()
-
-            if send_reset_email(email, reset_code):
-                flash('Reset code sent to your email!', 'success')
-                return redirect(url_for('resetpassword'))
-            else:
-                flash('Failed to send email. Please try again later.', 'error')
-        else:
-            flash('Email not found!', 'error')
-
-    return render_template('forgotpasswordemail.html')
 
 @app.route('/dashboard')
 @login_required
@@ -799,7 +741,7 @@ def manage_watchlist_item():
         conn.close()
 
 
-# ALPACA TRADING PROXY ROUTES
+# alpaca trading proxy routes
 
 @app.route('/api/portfolio', methods=['GET'])
 @login_required

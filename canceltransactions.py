@@ -10,14 +10,13 @@ AUTH = HTTPBasicAuth(API_KEY, API_SECRET)
 
 def cancel_all_transfers():
     print("\nChecking for stuck Transfers (ACH)...")
-    # Fetch all transfers that are in a queued/pending state
+    # fetch queued transfers
     try:
-        # Get list of ALL transfers, then we filter locally or via separate calls
-        # Alpaca allows filtering by status
+        # get list of all transfers
         response = requests.get(f"{BASE_URL}/transfers?status=queued", auth=AUTH)
         queued_transfers = response.json()
         
-        # Also check 'pending'
+        # also check pending
         response_pending = requests.get(f"{BASE_URL}/transfers?status=pending", auth=AUTH)
         pending_transfers = response_pending.json()
         
@@ -31,7 +30,7 @@ def cancel_all_transfers():
 
         for transfer in all_stuck:
             t_id = transfer['id']
-            # DELETE /v1/transfers/{id} cancels it
+            # delete cancels it
             del_resp = requests.delete(f"{BASE_URL}/transfers/{t_id}", auth=AUTH)
             
             if del_resp.status_code == 204:
@@ -44,7 +43,7 @@ def cancel_all_transfers():
 
 def cancel_all_journals():
     print("\nChecking for stuck Journals (JNLC)...")
-    # Fetch pending journals
+    # fetch pending journals
     try:
         response = requests.get(f"{BASE_URL}/journals?status=pending", auth=AUTH)
         if response.status_code != 200:
@@ -53,7 +52,7 @@ def cancel_all_journals():
 
         journals = response.json()
         
-        # Also check 'queued' just in case
+        # also check queued
         resp_q = requests.get(f"{BASE_URL}/journals?status=queued", auth=AUTH)
         if resp_q.status_code == 200:
             journals += resp_q.json()
@@ -66,7 +65,7 @@ def cancel_all_journals():
 
         for journal in journals:
             j_id = journal['id']
-            # DELETE /v1/journals/{id} cancels it
+            # delete cancels it
             del_resp = requests.delete(f"{BASE_URL}/journals/{j_id}", auth=AUTH)
             
             if del_resp.status_code == 204:
@@ -79,6 +78,6 @@ def cancel_all_journals():
 
 if __name__ == "__main__":
     print("--- STARTING CLEANUP ---")
-    cancel_all_transfers() # Clears the ACH list from your screenshot
-    cancel_all_journals()  # Clears any stuck internal movements
+    cancel_all_transfers()
+    cancel_all_journals()
     print("\n--- CLEANUP COMPLETE ---")
