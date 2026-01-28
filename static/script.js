@@ -1129,12 +1129,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 detailChangeEl.className = isPositive ? 'text-positive' : 'text-negative';
             }
 
-            if (window.tvCandleSeries) {
-                const dataList = window.tvCandleSeries.data();
-                if (dataList.length > 0) {
-                    const lastBar = dataList[dataList.length - 1];
-                    const updatedBar = { ...lastBar, close: price, high: Math.max(lastBar.high, price), low: Math.min(lastBar.low, price) };
-                    window.tvCandleSeries.update(updatedBar);
+            // ===========================================
+            // LIVE CHART STITCHING
+            // ===========================================
+            if (window.tvCandleSeries && window.tvChart) {
+                // Determine current timeframe seconds
+                // Uses the global TIMEFRAMES and currentChartTimeframe
+                const timeframeSeconds = TIMEFRAMES[currentChartTimeframe] || 3600;
+
+                // Get the last bar from the series
+                // Lightweight charts doesn't have a direct 'getLastBar', so we keep track or check data.
+                // However, .data() returns all data? No, it's not exposed efficiently in v3/v4 standalone usually.
+                // But we can keep a local reference or rely on updateCandle handling logic.
+
+                // We'll treat the "last data point" as the current bar to potentially update.
+                // ACTUALLY: Lightweight Charts `update` method AUTOMATICALLY handles "replace if same time, append if new time" logic for the most part, 
+                // BUT the user specifically asked for `updateCandle` logic to be implemented manually for custom aggregation control (volume summing etc).
+
+                // So we need to fetch the last bar from the chart.
+                // Since we can't easily "get" the last bar from the series object in all versions, 
+                // we'll maintain the `lastCandle` in a variable or try to get it from series if possible.
+                // For this implementation, let's assume `tvCandleSeries` has valid data.
+                // We can use a trick: `tvCandleSeries.dataByIndex(tvCandleSeries.data().length - 1)` isn't standard.
+                // We'll rely on the fact that we can maintain `lastKnownCandle` globally or per chart.
+
+                // Let's rely on the series having the data. 
+                // If we can't get it, we'll construct a pseudo-bar from the trade (new candle).
+                // Wait, the user logic REQUIRES `currentBar`.
+
+                // Strategy: We will store `lastBar` on the window object when specific functions run.
+                // Or better, since we just stitched it, we know it.
+
+                // Let's try to get data if the library supports it.
+                // If not, we use `window.lastChartBar`.
+
+                let currentBar = window.lastChartBar;
+
+                // Construct trade object for the stitching function
+                const trade = {
+                    price: price,
+                    time: data.time || (Date.now() / 1000),
+                    size: data.volume || 0
+                };
+
+                const stitchedBar = updateCandle(currentBar, trade, timeframeSeconds);
+
+                if (stitchedBar) {
+                    window.tvCandleSeries.update(stitchedBar);
+                    window.lastChartBar = stitchedBar;
                 }
             }
         }
@@ -1151,10 +1193,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Implement missing updateChart function using Lightweight Charts
-    window.updateChart = async function (symbol, days = 30) {
-        console.log(`Updating chart for ${symbol} (${days} days)`);
+    // Implement updateChart using Lightweight Charts AND fetchHistory
+    window.updateChart = async function (symbol, timeframe = '1h') {
+        console.log(`Updating chart for ${symbol} (${timeframe})`);
         currentSymbol = symbol;
+
+        // Handle numeric days buttons (1D, 1W, 1M, 3M, 1Y, MAX)
+        // Map them to efficient resolutions (1m, 1h, 1d)
+        // 1D (24h) -> 1m resolution
+        // 1W (7d) -> 15m resolution (if supported) or 1h
+        // 1M (30d) -> 1h resolution
+        // 3M+ -> 1d resolution
+        if (typeof timeframe === 'number') {
+            const days = timeframe;
+            if (days <= 1) timeframe = '1m';
+            else if (days <= 7) timeframe = '15m'; // Use 15m for 1 week if backend supports it
+            else if (days <= 30) timeframe = '1h'; // 1h for 1 month
+            else timeframe = '1d'; // Daily for anything > 1 month
+        }
+
+        // Ensure valid timeframe
+        if (!TIMEFRAMES[timeframe]) timeframe = '1h';
+        currentChartTimeframe = timeframe;
 
         const container = document.getElementById('stock-chart');
         if (!container) {
@@ -1162,12 +1222,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Check if chart already exists, if so remove it (or we could reuse it, but replacing is safer for switching types)
-        // Actually, reusing is better for performance, but we need to handle resizing etc.
-        // For now, let's clear and recreate to ensure clean state and remove any Plotly artifacts.
         container.innerHTML = '';
         tvChart = null;
         tvCandleSeries = null;
+        window.lastChartBar = null;
 
         // Create Chart
         const isDark = document.documentElement.classList.contains('dark');
@@ -1189,6 +1247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         tvChart = LightweightCharts.createChart(container, chartOptions);
+        window.tvChart = tvChart;
 
         tvCandleSeries = tvChart.addCandlestickSeries({
             upColor: '#26a69a',
@@ -1197,44 +1256,23 @@ document.addEventListener('DOMContentLoaded', () => {
             wickUpColor: '#26a69a',
             wickDownColor: '#ef5350',
         });
+        window.tvCandleSeries = tvCandleSeries;
 
         // Fetch Data
-        // We reuse existing fetch functions but map data
-        let chartData = [];
         try {
-            if (days <= 1) {
-                // Intraday
-                const intradayData = await fetchIntradayData(symbol);
-                chartData = intradayData.map(d => ({
-                    time: d.x.getTime() / 1000, // Unix timestamp in seconds
-                    open: d.o,
-                    high: d.h,
-                    low: d.l,
-                    close: d.c
-                }));
-            } else {
-                // Daily
-                const dailyData = await fetchDailyData(symbol);
-                chartData = dailyData.map(d => ({
-                    time: d.x.getTime() / 1000, // Unix timestamp in seconds
-                    open: d.o,
-                    high: d.h,
-                    low: d.l,
-                    close: d.c
-                }));
+            const chartData = await fetchHistory(symbol, timeframe);
 
-                // Filter roughly by days (assuming 1 candle per day for daily, but map might have gaps)
-                // Just take the last N items
-                if (chartData.length > days) {
-                    chartData = chartData.slice(-days);
-                }
-            }
-
-            // Sort by time (ascending)
+            // Sort by time (ascending) just in case
             chartData.sort((a, b) => a.time - b.time);
 
             // Set data
             tvCandleSeries.setData(chartData);
+
+            // Store the last bar for stitching
+            if (chartData.length > 0) {
+                window.lastChartBar = chartData[chartData.length - 1];
+            }
+
             tvChart.timeScale().fitContent();
 
         } catch (e) {
@@ -1966,4 +2004,98 @@ async function updateDashboardBalance() {
     } catch (e) {
         console.error("Failed to fetch balance:", e);
     }
+}
+
+// ==========================================
+// CANDLE STITCHING LOGIC
+// ==========================================
+
+const TIMEFRAMES = {
+    '1m': 60,
+    '5m': 300,
+    '15m': 900,
+    '1h': 3600,
+    '1d': 86400,
+};
+
+// Current chart state
+let currentChartTimeframe = '1h'; // Default
+
+/**
+ * Fetches historical bars from the backend
+ */
+async function fetchHistory(symbol, timeframe) {
+    try {
+        // Reverting to local proxy to avoid Browser SSL/CORS issues (ERR_CERTIFICATE_TRANSPARENCY_REQUIRED)
+        const response = await fetch(`/api/history?symbol=${symbol}&timeframe=${timeframe}`);
+
+        // If 404 or error, we might fallback or return empty
+        if (!response.ok) {
+            console.warn(`Fetch history failed for ${symbol} ${timeframe}: ${response.status}`);
+            return [];
+        }
+        const data = await response.json();
+        const bars = Array.isArray(data) ? data : (data.bars || data.data || []);
+
+        return bars.map(bar => ({
+            time: bar.bucket_time || bar.time,
+            open: bar.open,
+            high: bar.high,
+            low: bar.low,
+            close: bar.close,
+            volume: bar.volume
+        }));
+
+    } catch (error) {
+        console.error('Error fetching history:', error);
+        return [];
+    }
+}
+
+/**
+ * Updates the current candle or creates a new one
+ */
+function updateCandle(currentBar, trade, timeframeSeconds) {
+    const tradePrice = parseFloat(trade.price);
+    const tradeTime = Math.floor(trade.time || (Date.now() / 1000));
+    const tradeVolume = parseFloat(trade.size || trade.volume || 0);
+
+    // Calculate the start time of the bucket this trade belongs to
+    const calculatedStart = Math.floor(tradeTime / timeframeSeconds) * timeframeSeconds;
+
+    if (!currentBar) {
+        return {
+            time: calculatedStart,
+            open: tradePrice,
+            high: tradePrice,
+            low: tradePrice,
+            close: tradePrice,
+            volume: tradeVolume
+        };
+    }
+
+    // Check if trade belongs to the current bar
+    if (calculatedStart === currentBar.time) {
+        // Update existing bar
+        return {
+            ...currentBar,
+            high: Math.max(currentBar.high, tradePrice),
+            low: Math.min(currentBar.low, tradePrice),
+            close: tradePrice,
+            volume: (currentBar.volume || 0) + tradeVolume
+        };
+    } else if (calculatedStart > currentBar.time) {
+        // New candle!
+        return {
+            time: calculatedStart,
+            open: tradePrice,
+            high: tradePrice,
+            low: tradePrice,
+            close: tradePrice,
+            volume: tradeVolume
+        };
+    }
+
+    // Trade is older than current bar? Ignore.
+    return currentBar;
 }

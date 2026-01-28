@@ -14,6 +14,14 @@ from psycopg2.extras import RealDictCursor
 import time
 import json
 import base64
+import urllib3
+
+# Suppress InsecureRequestWarning
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+print("--------------------------------------------------")
+print("PenguinTrader Backend Loaded - API Routes Registered")
+print("--------------------------------------------------")
 
 # load environment variables
 load_dotenv()
@@ -822,6 +830,37 @@ def place_order():
     except Exception as e:
         print(f"Order Error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/api/history', methods=['GET'])
+@login_required
+def get_history():
+    symbol = request.args.get('symbol')
+    timeframe = request.args.get('timeframe', '1h')
+    
+    # Proxy to the provided backend
+    external_api_url = os.getenv('TAILSCALE_HISTORY_URL')
+    
+    if not external_api_url:
+        return jsonify({'error': 'Tailscale URL not configured'}), 500
+    
+    try:
+        # verify=False bypasses the Certificate Transparency check that browsers enforce
+        response = requests.get(
+            external_api_url, 
+            params={'symbol': symbol, 'timeframe': timeframe},
+            verify=False 
+        )
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({'error': 'Failed to fetch history', 'details': response.text}), response.status_code
+            
+    except Exception as e:
+        print(f"History Proxy Error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
