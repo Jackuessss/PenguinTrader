@@ -631,21 +631,12 @@ timeButtons.forEach(button => {
         // Add active class to clicked button
         button.classList.add('time-active');
 
-        // Get the time period from the button text
-        const period = button.textContent;
-        let days;
-        switch (period) {
-            case '1D': days = 1; break;
-            case '1W': days = 7; break;
-            case '1M': days = 30; break;
-            case '3M': days = 90; break;
-            case '1Y': days = 365; break;
-            case 'MAX': days = 365 * 5; break;
-        }
-
-        // Update chart with new time period
+        // Get the time period from the button text directly (e.g. '1D', '1W')
+        const period = button.textContent.trim();
         const currentSymbol = document.getElementById('detail-symbol').textContent;
-        updateChart(currentSymbol, days);
+
+        // Pass the period string directly to updateChart
+        updateChart(currentSymbol, period);
     });
 });
 
@@ -1153,13 +1144,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // We can use a trick: `tvCandleSeries.dataByIndex(tvCandleSeries.data().length - 1)` isn't standard.
                 // We'll rely on the fact that we can maintain `lastKnownCandle` globally or per chart.
 
-                // Let's rely on the series having the data. 
-                // If we can't get it, we'll construct a pseudo-bar from the trade (new candle).
-                // Wait, the user logic REQUIRES `currentBar`.
-
-                // Strategy: We will store `lastBar` on the window object when specific functions run.
-                // Or better, since we just stitched it, we know it.
-
                 // Let's try to get data if the library supports it.
                 // If not, we use `window.lastChartBar`.
 
@@ -1198,23 +1182,32 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`Updating chart for ${symbol} (${timeframe})`);
         currentSymbol = symbol;
 
-        // Handle numeric days buttons (1D, 1W, 1M, 3M, 1Y, MAX)
-        // Map them to efficient resolutions (1m, 1h, 1d)
-        // 1D (24h) -> 1m resolution
-        // 1W (7d) -> 15m resolution (if supported) or 1h
-        // 1M (30d) -> 1h resolution
-        // 3M+ -> 1d resolution
-        if (typeof timeframe === 'number') {
-            const days = timeframe;
-            if (days <= 1) timeframe = '1m';
-            else if (days <= 7) timeframe = '15m'; // Use 15m for 1 week if backend supports it
-            else if (days <= 30) timeframe = '1h'; // 1h for 1 month
-            else timeframe = '1d'; // Daily for anything > 1 month
+        const viewName = timeframe; // '1D', '1W', '1M', '1Y' passed from buttons
+        let apiTimeframe = '1h';
+        let rangeSeconds = 0;
+
+        // Map View -> (Supported Backend Timeframe) + (Visible Range Duration)
+        // Supported Backend: 15m, 1h, 1d. (30m, 4h, 1w failed with 400)
+        if (viewName === '1D') {
+            apiTimeframe = '15m'; // Supported
+            rangeSeconds = 24 * 60 * 60; // 24 Hours
+        } else if (viewName === '1W') {
+            apiTimeframe = '1h'; // Fallback for 30m (Backend 400)
+            rangeSeconds = 7 * 24 * 60 * 60; // 7 Days
+        } else if (viewName === '1M') {
+            apiTimeframe = '1h'; // Fallback for 4h (Backend 400)
+            rangeSeconds = 30 * 24 * 60 * 60; // 30 Days
+        } else if (viewName === '1Y') {
+            apiTimeframe = '1d'; // Fallback for 1w (Backend 400)
+            rangeSeconds = 365 * 24 * 60 * 60; // 365 Days
+        } else {
+            // Fallback or direct usage
+            apiTimeframe = TIMEFRAMES[timeframe] ? timeframe : '1h';
         }
 
-        // Ensure valid timeframe
-        if (!TIMEFRAMES[timeframe]) timeframe = '1h';
-        currentChartTimeframe = timeframe;
+        // Update global state
+        currentChartTimeframe = apiTimeframe;
+        timeframe = apiTimeframe; // For fetchHistory usage below
 
         const container = document.getElementById('stock-chart');
         if (!container) {
@@ -1273,7 +1266,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.lastChartBar = chartData[chartData.length - 1];
             }
 
-            tvChart.timeScale().fitContent();
+            // Special handling for 1D view: Show last 24 hours
+            // We use 'requestedTimeframe' which we captured earlier, or infer from logic
+            // Special handling for Views: Set Visible Range ("Same as a day but designated candle times")
+            const now = Date.now() / 1000;
+            // rangeSeconds is inherited from top of function scope
+
+            if (rangeSeconds > 0) {
+                const fromTime = now - rangeSeconds;
+                tvChart.timeScale().setVisibleRange({
+                    from: fromTime,
+                    to: now
+                });
+            } else {
+                tvChart.timeScale().fitContent();
+            }
 
         } catch (e) {
             console.error('Error updating chart:', e);
@@ -2014,8 +2021,11 @@ const TIMEFRAMES = {
     '1m': 60,
     '5m': 300,
     '15m': 900,
+    '30m': 1800,
     '1h': 3600,
+    '4h': 14400,
     '1d': 86400,
+    '1w': 604800,
 };
 
 // Current chart state
