@@ -246,6 +246,11 @@ function renderStockList(stocks) {
 
         stockListEl.appendChild(div);
     });
+
+    // Auto-load first stock if available
+    if (stocks.length > 0) {
+        showStockDetail(stocks[0]);
+    }
 }
 
 
@@ -254,8 +259,12 @@ window.userWatchlists = []; // [{id, name, items: ['AAPL']}]
 window.activeWatchlistId = null; // null means 'all', or a specific UUID
 
 // Call init on load
+// Call init on load
 document.addEventListener('DOMContentLoaded', () => {
-    // initWatchlist();
+    // Render default view immediately
+    switchWatchlist(null);
+
+    // Fetch user watchlists in background
     fetchWatchlists();
 
     // Initialize real-time updates if available
@@ -710,9 +719,13 @@ async function loadWatchlistItems(watchlistId) {
                                         </div>
                                     </div>
                                     <div class="text-right">
-                                        <div class="font-semibold">$${(stock.price || 0).toFixed(2)}</div>
+                                        <div class="font-semibold">
+                                            ${(stock.price !== undefined && stock.price !== null) ? '$' + stock.price.toFixed(2) : '<div class="h-4 w-20 bg-gray-700 rounded animate-pulse mb-1"></div>'}
+                                        </div>
                                         <div class="text-xs ${stock.isPositive ? 'text-positive' : 'text-negative'}">
-                                            ${stock.isPositive ? '+' : ''}${(stock.change || 0).toFixed(2)} (${stock.isPositive ? '+' : ''}${(stock.changePercent || 0).toFixed(2)}%)
+                                            ${(stock.price !== undefined && stock.price !== null)
+                        ? (stock.isPositive ? '+' : '') + (stock.change || 0).toFixed(2) + ' (' + (stock.isPositive ? '+' : '') + (stock.changePercent || 0).toFixed(2) + '%)'
+                        : '<div class="h-3 w-16 bg-gray-700 rounded animate-pulse ml-auto"></div>'}
                                         </div>
                                     </div>
                                 </div>
@@ -734,10 +747,10 @@ async function loadWatchlistItems(watchlistId) {
                 stockListEl.appendChild(div);
             });
 
-            // Show the first stock as default - REMOVED per user request
-            // if (data.items.length > 0) {
-            //     showStockDetail(data.items[0]);
-            // }
+            // Show the first stock as default
+            if (data.items.length > 0) {
+                showStockDetail(data.items[0]);
+            }
         } else {
             stockListEl.innerHTML = `
                 <div class="flex flex-col items-center justify-center h-full py-12 text-center">
@@ -1002,48 +1015,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // function to format price
-    function formatPrice(price) {
-        return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
+    // Functions moved to global scope
 
-    // function to show stock detail
-    function showStockDetail(stock) {
-        const detailSection = document.getElementById('stock-detail');
-        if (!detailSection) return;
-
-        detailSection.classList.remove('hidden');
-        detailSection.classList.add('md:flex');
-
-        document.getElementById('detail-name').textContent = stock.name;
-        document.getElementById('detail-symbol').textContent = stock.symbol;
-
-        // Check if we have price data
-        const hasData = stock.price !== undefined && stock.price !== null;
-
-        const changeElement = document.getElementById('detail-change');
-
-        if (hasData) {
-            const changeText = `${stock.isPositive ? '+' : ''}${formatPrice(stock.changePercent)}% (${stock.isPositive ? '+' : ''}${formatPrice(stock.change)})`;
-            changeElement.textContent = changeText;
-            changeElement.className = stock.isPositive ? 'text-positive' : 'text-negative';
-
-            document.getElementById('detail-sell-price').textContent = `$${formatPrice(stock.price)}`;
-            document.getElementById('detail-buy-price').textContent = `$${formatPrice(stock.price + 0.03)}`;
-        } else {
-            // Loading State
-            changeElement.innerHTML = '<div class="h-4 w-32 bg-gray-700 rounded animate-pulse inline-block"></div>';
-            changeElement.className = '';
-
-            document.getElementById('detail-sell-price').innerHTML = '<div class="h-8 w-32 bg-primary/50 rounded animate-pulse"></div>';
-            document.getElementById('detail-buy-price').innerHTML = '<div class="h-8 w-32 bg-primary/50 rounded animate-pulse ml-auto"></div>';
-        }
-
-        // Update chart
-        // If no data, updateChart might show empty or previous.
-        // We will call it anyway, but handle empty inside it if needed
-        updateChart(stock.symbol);
-    }
 
 
 
@@ -1178,11 +1151,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Implement updateChart using Lightweight Charts AND fetchHistory
-    window.updateChart = async function (symbol, timeframe = '1h') {
+    window.updateChart = async function (symbol, timeframe = '1D') {
         console.log(`Updating chart for ${symbol} (${timeframe})`);
         currentSymbol = symbol;
 
         const viewName = timeframe; // '1D', '1W', '1M', '1Y' passed from buttons
+        console.log(`[DEBUG] updateChart viewName: ${viewName}`);
         let apiTimeframe = '1h';
         let rangeSeconds = 0;
 
@@ -2106,6 +2080,70 @@ function updateCandle(currentBar, trade, timeframeSeconds) {
         };
     }
 
-    // Trade is older than current bar? Ignore.
+    // Trade is older than current bar? Ignore.  
     return currentBar;
+}
+
+// ==========================================
+// Global Helper Functions (Moved to Global Scope)
+// ==========================================
+
+function formatPrice(price) {
+    if (typeof price !== 'number') return '0.00';
+    return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// Check if showStockDetail is already defined to avoid dupes (if any remain)
+if (typeof window.showStockDetail !== 'function') {
+    window.showStockDetail = function (stock) {
+        console.log('showStockDetail (Global) called for:', stock);
+        const detailSection = document.getElementById('stock-detail');
+        if (!detailSection) return;
+
+        detailSection.classList.remove('hidden');
+        detailSection.classList.add('md:flex');
+
+        const nameEl = document.getElementById('detail-name');
+        if (nameEl) nameEl.textContent = stock.name;
+
+        const symEl = document.getElementById('detail-symbol');
+        if (symEl) symEl.textContent = stock.symbol;
+
+        // Check if we have price data
+        const hasData = stock.price !== undefined && stock.price !== null;
+
+        const changeElement = document.getElementById('detail-change');
+        const sellEl = document.getElementById('detail-sell-price');
+        const buyEl = document.getElementById('detail-buy-price');
+
+        if (hasData) {
+            // Safe access
+            const chg = stock.change || 0;
+            const chgPct = stock.changePercent || 0;
+            const isPos = stock.isPositive !== undefined ? stock.isPositive : (chg >= 0);
+
+            const changeText = `${isPos ? '+' : ''}${formatPrice(chgPct)}% (${isPos ? '+' : ''}${formatPrice(chg)})`;
+            if (changeElement) {
+                changeElement.textContent = changeText;
+                changeElement.className = isPos ? 'text-positive' : 'text-negative';
+            }
+
+            if (sellEl) sellEl.textContent = `$${formatPrice(stock.price)}`;
+            if (buyEl) buyEl.textContent = `$${formatPrice(stock.price + 0.03)}`;
+        } else {
+            // Loading State
+            if (changeElement) {
+                changeElement.innerHTML = '<div class="h-4 w-32 bg-gray-700 rounded animate-pulse inline-block"></div>';
+                changeElement.className = '';
+            }
+
+            if (sellEl) sellEl.innerHTML = '<div class="h-8 w-32 bg-primary/50 rounded animate-pulse"></div>';
+            if (buyEl) buyEl.innerHTML = '<div class="h-8 w-32 bg-primary/50 rounded animate-pulse ml-auto"></div>';
+        }
+
+        // Update chart
+        if (window.updateChart) {
+            window.updateChart(stock.symbol, '1D');
+        }
+    };
 }

@@ -796,115 +796,21 @@
 
 
     <!-- JavaScript -->
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}?v=6"></script>
     <script>
-        // Function to show stock details
-        function showStockDetail(stock) {
-            console.log('Showing details for:', stock);
-            const detailSection = document.getElementById('stock-detail');
-            if (detailSection) {
-                detailSection.classList.remove('hidden');
-                detailSection.classList.add('md:flex');
+        // showStockDetail is defined in script.js
 
-                // Update stock details
-                const nameEl = document.getElementById('detail-name');
-                if (nameEl) nameEl.textContent = stock.name;
 
-                const symbolEl = document.getElementById('detail-symbol');
-                if (symbolEl) symbolEl.textContent = stock.symbol;
-
-                const changeEl = document.getElementById('detail-change');
-                if (changeEl) {
-                    const change = stock.change || 0;
-                    const changePercent = stock.changePercent || 0;
-                    const isPositive = stock.isPositive !== undefined ? stock.isPositive : (change >= 0);
-
-                    changeEl.textContent = `${isPositive ? '+' : ''}${change.toFixed(2)} (${changePercent.toFixed(2)}%)`;
-                    changeEl.className = isPositive ? 'text-positive' : 'text-negative';
-                }
-
-                const price = stock.price || 0;
-                const sellEl = document.getElementById('detail-sell-price');
-                if (sellEl) sellEl.textContent = `$${price.toFixed(2)}`;
-
-                const buyEl = document.getElementById('detail-buy-price');
-                if (buyEl) buyEl.textContent = `$${price.toFixed(2)}`;
-
-                // Update chart if available
-                if (window.updateChart) {
-                    window.updateChart(stock.symbol);
-                }
-            }
-        }
-
-        // Function to load all stocks for search and default view
-        async function fetchAllStocks() {
-            try {
-                console.log('Loading stocks from API...');
-
-                // Fetch directly from /api/stocks
-                const response = await fetch('/api/stocks');
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                console.log('Stocks data:', data);
-
-                // Populate global variable for search
-                window.allStocks = data.map(item => {
-                    const price = typeof item.price === 'number' ? item.price : 150.00;
-                    const change = typeof item.change === 'number' ? item.change : 1.50;
-                    const changePercent = typeof item.changePercent === 'number' ? item.changePercent : 1.00;
-                    const isPositive = typeof item.isPositive === 'boolean' ? item.isPositive : change >= 0;
-
-                    return {
-                        ...item,
-                        price,
-                        change,
-                        changePercent,
-                        isPositive,
-                        logoUrl: item.logoUrl || item.logo_url || ''
-                    };
-                });
-
-                // Update the search input placeholder
-                const searchInput = document.getElementById('stock-search');
-                if (searchInput) {
-                    searchInput.placeholder = 'Search stocks...';
-                }
-
-                // Update the stock list
-                const stockList = document.getElementById('stock-list');
-                if (stockList) {
-                    stockList.innerHTML = ''; // Clear the list
-
-                    if (Array.isArray(window.allStocks) && window.allStocks.length > 0) {
-                        window.allStocks.forEach(item => {
-                            const div = document.createElement('div');
-                            div.className = 'p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b dark:border-gray-700 border-gray-200';
-                            div.setAttribute('data-symbol', item.symbol);
-
-                            div.innerHTML = `
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="w-8 h-8 flex-shrink-0">
-                                            <img src="${item.logoUrl}" alt="${item.name} logo" class="w-full h-full object-contain" onerror="this.onerror=null;this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0iI2NjYyI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkeT0iLjNlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwIj4/PC90ZXh0Pjwvc3ZnPg=='">
-                                        </div>
-                                        <div>
-                                            <div class="font-medium">${item.name}</div>
-                                            <div class="text-sm text-gray-400">${item.symbol}</div>
-                                        </div>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="font-semibold">$${item.price.toFixed(2)}</div>
-                                        <div class="text-xs ${item.isPositive ? 'text-positive' : 'text-negative'}">
-                                            ${item.isPositive ? '+' : ''}${item.change.toFixed(2)} (${item.changePercent.toFixed(2)}%)
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
+                                        </div >
+                                    </div >
+            <div class="text-right">
+                <div class="font-semibold">$${item.price.toFixed(2)}</div>
+                <div class="text-xs ${item.isPositive ? 'text-positive' : 'text-negative'}">
+                    ${item.isPositive ? '+' : ''}${item.change.toFixed(2)} (${item.changePercent.toFixed(2)}%)
+                </div>
+            </div>
+                                </div >
+            `;
 
                             div.addEventListener('click', () => {
                                 // Remove active class from all items
@@ -928,10 +834,10 @@
                         // }
                     } else {
                         stockList.innerHTML = `
-                            <div class="p-4 text-center text-gray-500">
-                                No stocks found in stocks.json
-                            </div>
-                        `;
+            < div class="p-4 text-center text-gray-500" >
+                No stocks found in stocks.json
+                            </div >
+            `;
                     }
                 }
             } catch (error) {
@@ -939,10 +845,10 @@
                 const stockList = document.getElementById('stock-list');
                 if (stockList) {
                     stockList.innerHTML = `
-                        <div class="p-4 text-center text-red-500">
-                            Error loading stocks: ${error.message}
-                        </div>
-                    `;
+            < div class="p-4 text-center text-red-500" >
+                Error loading stocks: ${ error.message }
+                        </div >
+            `;
                 }
             }
         }
@@ -998,26 +904,26 @@
                                 searchResults.innerHTML = '<div class="p-4 text-gray-500">No results found</div>';
                             } else {
                                 searchResults.innerHTML = results.map(stock => `
-                                    <div class="p-4 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-0" onclick="selectStock('${stock.symbol}')">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center space-x-3">
-                                                <div class="w-8 h-8 flex-shrink-0">
-                                                    <img src="${stock.logoUrl}" alt="${stock.name} logo" class="w-full h-full object-contain">
-                                                </div>
-                                                <div>
-                                                    <div class="font-medium">${stock.name}</div>
-                                                    <div class="text-sm text-gray-400">${stock.symbol}</div>
-                                                </div>
-                                            </div>
-                                            <div class="text-right">
-                                                <div class="font-semibold">$${stock.price.toFixed(2)}</div>
-                                                <div class="text-xs ${stock.isPositive ? 'text-positive' : 'text-negative'}">
-                                                    ${stock.isPositive ? '+' : ''}${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `).join('');
+            < div class="p-4 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-0" onclick = "selectStock('${stock.symbol}')" >
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 flex-shrink-0">
+                            <img src="${stock.logoUrl}" alt="${stock.name} logo" class="w-full h-full object-contain">
+                        </div>
+                        <div>
+                            <div class="font-medium">${stock.name}</div>
+                            <div class="text-sm text-gray-400">${stock.symbol}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-semibold">$${stock.price.toFixed(2)}</div>
+                        <div class="text-xs ${stock.isPositive ? 'text-positive' : 'text-negative'}">
+                            ${stock.isPositive ? '+' : ''}${stock.change.toFixed(2)} (${stock.changePercent.toFixed(2)}%)
+                        </div>
+                    </div>
+                </div>
+                                    </div >
+            `).join('');
                             }
 
                             searchResults.classList.remove('hidden');
@@ -1036,7 +942,7 @@
             // Make the selectStock function available globally
             window.selectStock = function (symbol) {
                 console.log('Selecting stock:', symbol);
-                const stockElement = document.querySelector(`#stock-list div[data-symbol="${symbol}"]`);
+                const stockElement = document.querySelector(`#stock - list div[data - symbol= "${symbol}"]`);
 
                 if (stockElement) {
                     stockElement.click();
