@@ -1196,24 +1196,158 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Create Chart
         const isDark = document.documentElement.classList.contains('dark');
+        // Ensure container has relative positioning for tooltip
+        container.style.position = 'relative';
+
         const chartOptions = {
             width: container.clientWidth,
             height: 400,
             layout: {
-                background: { color: isDark ? '#1A232D' : '#ffffff' },
-                textColor: isDark ? '#d1d4dc' : '#333',
+                background: { color: '#121921' },
+                textColor: 'rgba(209, 213, 219, 0)', // Transparent default (affects TimeScale)
             },
             grid: {
-                vertLines: { color: isDark ? '#2B2B43' : '#F0F3FA' },
-                horzLines: { color: isDark ? '#2B2B43' : '#F0F3FA' },
+                vertLines: { visible: false },
+                horzLines: { visible: false },
+            },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+                vertLine: {
+                    color: '#5D5CDE',
+                    width: 1,
+                    style: 0,
+                    labelVisible: false, // We use custom tooltip
+                },
+                horzLine: {
+                    color: '#5D5CDE',
+                    width: 1,
+                    style: 0,
+                    labelBackgroundColor: '#5D5CDE',
+                },
             },
             timeScale: {
+                borderColor: 'rgba(55, 65, 81, 0)', // Transparent start
                 timeVisible: true,
-                secondsVisible: false,
+                visible: true, // Always visible to reserve space
+            },
+            rightPriceScale: {
+                borderColor: '#374151',
+                textColor: '#d1d5db', // Fixed visible color for Price Scale
+            },
+            handleScale: {
+                mouseWheel: false,
+            },
+            handleScroll: {
+                mouseWheel: false,
+                vertTouchDrag: false,
             },
         };
 
         tvChart = LightweightCharts.createChart(container, chartOptions);
+
+        // X-Axis Fade Animation Logic
+        let axisFadeReq;
+        const animateAxis = (targetOpacity) => {
+            const start = performance.now();
+            const duration = 200; // ms
+
+            // Get current opacity from current options (approximate or tracking variable)
+            // We'll just define the target colors
+            // Text: #d1d5db (RGB: 209, 213, 219)
+            // Border: #374151 (RGB: 55, 65, 81)
+
+            const draw = (now) => {
+                const timeFraction = Math.min((now - start) / duration, 1);
+                // Simple linear fade for now, or just setting direct colors if we don't track state perfect
+                // Actually, let's just use CSS-like stepping or just set it
+
+                // To do a real fade we need state. Let's accept a simpler 3-step fade or just standard opacity
+                // For robustness, let's just calculate the color string based on targetOpacity * timeFraction 
+                // But going from 0 to 1 requires current state.
+
+                // Simplified approach: toggle classes? No, canvas.
+                // Let's just use a fixed 3-step transition to avoid complexity glitches
+            };
+
+            // BETTER APPROACH: Just set the color with alpha using CSS rgba strings directly
+            // We will just set the strict colors based on "show" or "hide"
+            // But the user asked for FADE.
+
+            // Let's implement a simple interval fade
+            let opacity = targetOpacity === 1 ? 0 : 1;
+            const step = targetOpacity === 1 ? 0.1 : -0.1;
+
+            clearInterval(axisFadeReq);
+            axisFadeReq = setInterval(() => {
+                opacity += step;
+                if ((targetOpacity === 1 && opacity >= 1) || (targetOpacity === 0 && opacity <= 0)) {
+                    opacity = targetOpacity;
+                    clearInterval(axisFadeReq);
+                }
+
+                const a = Math.max(0, Math.min(1, opacity));
+                tvChart.applyOptions({
+                    timeScale: {
+                        borderColor: `rgba(55, 65, 81, ${a})`,
+                    },
+                    layout: {
+                        textColor: `rgba(209, 213, 219, ${a})`
+                    }
+                });
+            }, 16); // 60fps approx
+        };
+
+        // Conditional X-Axis Visibility (Show on Drag/Interact)
+        container.addEventListener('mousedown', () => {
+            animateAxis(1);
+        });
+
+        const hideAxis = () => {
+            animateAxis(0);
+        };
+
+        container.addEventListener('mouseup', hideAxis);
+        container.addEventListener('mouseleave', hideAxis);
+
+        // Initial State: Transparent
+        tvChart.applyOptions({
+            timeScale: {
+                borderColor: 'rgba(55, 65, 81, 0)',
+                textColor: 'rgba(209, 213, 219, 0)'
+            }
+        });
+
+        // Create Tooltip Element
+        const toolTip = document.createElement('div');
+        toolTip.style = `width: auto; height: auto; position: absolute; display: none; padding: 4px 8px; box-sizing: border-box; font-size: 12px; text-align: center; z-index: 1000; top: 12px; left: 12px; pointer-events: none; border-radius: 4px; background: white; color: black; font-family: 'Inter', sans-serif; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.2);`;
+        container.appendChild(toolTip);
+
+        tvChart.subscribeCrosshairMove(param => {
+            if (
+                param.point === undefined ||
+                !param.time ||
+                param.point.x < 0 ||
+                param.point.x > container.clientWidth ||
+                param.point.y < 0 ||
+                param.point.y > container.clientHeight
+            ) {
+                toolTip.style.display = 'none';
+            } else {
+                const dateStr = window.luxon.DateTime.fromSeconds(param.time).toFormat('EEE dd MMM, HH:mm');
+                toolTip.style.display = 'block';
+                toolTip.innerHTML = dateStr;
+
+                // Center tooltip on the crosshair's X coordinate, but keep it at the top
+                const coordinate = tvChart.timeScale().timeToCoordinate(param.time);
+                let shiftedX = coordinate - 50; // Approximating width/2 (adjust as needed)
+                if (shiftedX < 0) shiftedX = 0;
+                if (shiftedX > container.clientWidth - 100) shiftedX = container.clientWidth - 100;
+
+                toolTip.style.left = coordinate + 'px';
+                toolTip.style.top = '10px'; // Fixed at top like the screenshot
+                toolTip.style.transform = 'translateX(-50%)'; // True centering
+            }
+        });
         window.tvChart = tvChart;
 
         tvCandleSeries = tvChart.addCandlestickSeries({
