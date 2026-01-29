@@ -2147,6 +2147,9 @@ async function updateDashboardBalance() {
     const balanceEl = document.getElementById('balance');
     const orderBalanceDetail = document.getElementById('order-balance-display'); // Also update in modal if exists
 
+    // Always fetch positions to update the UI below chart
+    fetchOpenPositions();
+
     if (!balanceEl) return;
 
     try {
@@ -2168,6 +2171,224 @@ async function updateDashboardBalance() {
         console.error("Failed to fetch balance:", e);
     }
 }
+
+// ==========================================
+// POSITIONS LOGIC
+// ==========================================
+async function fetchOpenPositions() {
+    try {
+        const res = await fetch('/api/positions');
+        if (res.ok) {
+            const positions = await res.json();
+            // Handle array or error object
+            if (Array.isArray(positions)) {
+                renderOpenPositions(positions);
+            } else {
+                console.warn('Positions fetch returned non-array:', positions);
+                renderOpenPositions([]);
+            }
+        } else {
+            // console.warn('Failed to fetch positions');
+            renderOpenPositions([]);
+        }
+    } catch (e) {
+        console.error("Failed to fetch positions:", e);
+        renderOpenPositions([]);
+    }
+}
+
+function renderOpenPositions(positions) {
+    const section = document.getElementById('open-positions-section');
+    const list = document.getElementById('positions-list');
+    const scrollWrapper = document.getElementById('chart-scroll-wrapper');
+    const headerCount = document.getElementById('positions-count-header');
+
+    // Summary IDs
+    const totalResultEl = document.getElementById('positions-total-result');
+    const totalValueEl = document.getElementById('positions-total-value');
+    const totalMarginEl = document.getElementById('positions-total-margin');
+
+    // Filter for CURRENT symbol only
+    // If we want to see ALL positions, remove this filter. 
+    // But user asked "positions are only shown for what stock they re for"
+    const relevantPositions = positions.filter(p => p.symbol === (window.currentSymbol || 'AAPL'));
+
+    // 1. Handle Visibility & Scrolling (Based on RELEVANT positions)
+    if (!relevantPositions || relevantPositions.length === 0) {
+        if (section) {
+            section.classList.add('hidden');
+            section.classList.remove('flex');
+        }
+        if (scrollWrapper) {
+            scrollWrapper.classList.add('overflow-y-hidden');
+            scrollWrapper.classList.remove('overflow-y-auto');
+        }
+        // Even if headers are hidden, we might want to update totals if we want them GLOBAL?
+        // User asked "positions are only shown for what stock they re for".
+        // Usually "Open Positions" widget shows ALL positions in potential tabs, but logic here is specific.
+        return;
+    }
+
+    // Has positions -> Show and Enable Scroll
+    if (section) {
+        section.classList.remove('hidden');
+        section.classList.add('flex');
+    }
+    if (scrollWrapper) {
+        scrollWrapper.classList.remove('overflow-y-hidden');
+        scrollWrapper.classList.add('overflow-y-auto');
+    }
+
+    if (headerCount) {
+        headerCount.textContent = `${relevantPositions.length} position${relevantPositions.length === 1 ? '' : 's'}`;
+    }
+
+    // 2. Calculate Totals & Render List
+    let totalResult = 0;
+    let totalValue = 0;
+    let totalMargin = 0;
+
+    if (list) {
+        list.innerHTML = '';
+        relevantPositions.forEach(pos => {
+            const qty = parseFloat(pos.qty);
+            const entry = parseFloat(pos.avg_entry_price);
+            const pl = parseFloat(pos.unrealized_pl);
+            const mv = parseFloat(pos.market_value);
+            const side = (pos.side || 'long').toLowerCase();
+
+            totalResult += pl;
+            totalValue += mv;
+            totalMargin += (mv * 0.20);
+
+            // Display Vars
+            const isBuy = side === 'long';
+            const displaySide = isBuy ? 'BUY' : 'SELL';
+            const isPos = pl >= 0;
+            const resultColor = isPos ? 'text-positive' : 'text-negative';
+            const safeId = `pos-${pos.symbol}`;
+
+            // Replace £ with $ as discussed
+            const badgeClass = "border border-[#00A4EF] text-[#00A4EF] px-2 py-0.5 rounded text-[10px] font-bold uppercase";
+
+            const item = document.createElement('div');
+            // Layered Container
+            item.className = "relative h-[72px] w-full overflow-hidden rounded-xl mb-3 select-none";
+
+            // ACTION LAYER (Checkered flag or Red Button)
+            // Reference image has a Red "Close" button on the right.
+            item.innerHTML = `
+                <!-- Background Action Layer -->
+                <div class="absolute inset-y-0 right-0 flex w-full justify-end bg-gray-900 rounded-xl">
+                    <button onclick="closePosition('${pos.symbol}', ${qty}, '${side}')" 
+                        class="h-full w-[100px] bg-[#FF453A] hover:bg-red-600 text-white font-bold text-sm flex items-center justify-center rounded-r-xl transition-colors">
+                        Close
+                    </button>
+                </div>
+
+                <!-- Foreground Content Layer -->
+                <div id="${safeId}" class="relative z-10 h-full w-full bg-gray-50 dark:bg-[#161C26] border dark:border-gray-800 border-gray-200 rounded-xl p-4 flex justify-between items-center transition-transform duration-300 ease-out bg-surface">
+                    
+                    <div class="flex items-center space-x-3">
+                         <!-- Side Badge -->
+                        <div class="${badgeClass}">${displaySide}</div>
+                        <!-- Info -->
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-900 dark:text-white text-sm">
+                                ${qty} <span class="text-gray-500 font-normal">@</span> $${formatPrice(entry)}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <!-- P&L -->
+                        <div class="font-bold ${resultColor} text-sm">
+                            ${isPos ? '+' : ''}$${formatPrice(pl)}
+                        </div>
+                        
+                        <!-- Slide Trigger (X Button) -->
+                        <button onclick="toggleSlide('${safeId}')" class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center justify-center transition-colors">
+                             <svg class="w-3 h-3 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    // 3. Update Summary
+    if (totalResultEl) {
+        const isPos = totalResult >= 0;
+        totalResultEl.textContent = `${isPos ? '+' : ''}$${formatPrice(totalResult)}`;
+        // Fix class output
+        totalResultEl.className = `font-bold text-base ${isPos ? 'text-positive' : 'text-negative'}`;
+    }
+    if (totalValueEl) totalValueEl.textContent = `$${formatPrice(totalValue)}`;
+    if (totalMarginEl) totalMarginEl.textContent = `$${formatPrice(totalMargin)}`;
+}
+
+// SLIDE LOGIC
+window.toggleSlide = function (elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    // Toggle translate
+    if (el.style.transform === 'translateX(-100px)') {
+        el.style.transform = 'translateX(0)';
+    } else {
+        // Reset others? Maybe
+        // document.querySelectorAll('[id^="pos-"]').forEach(d => d.style.transform = 'translateX(0)');
+        el.style.transform = 'translateX(-100px)';
+    }
+};
+
+// CLOSE LOGIC
+window.closePosition = async function (symbol, qty, currentSide) {
+    // CurrentSide is 'long' or 'short'.
+    // To close 'long', we SELL. To close 'short', we BUY.
+    const sideToExecute = currentSide.toLowerCase() === 'long' ? 'sell' : 'buy';
+
+    if (!confirm(`Close position ${symbol} (${qty} shares)?`)) return;
+
+    // Show loading?
+    const btn = document.activeElement;
+    if (btn) btn.innerText = '...';
+
+    try {
+        const res = await fetch('/api/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                symbol: symbol,
+                qty: qty,
+                side: sideToExecute,
+                type: 'market',
+                time_in_force: 'day'
+            })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            // Success
+            // alert(`Position Closed: ${data.status}`);
+            // Refresh data immediately
+            setTimeout(() => {
+                fetchOpenPositions();
+                updateDashboardBalance();
+            }, 500); // Wait for fill technically
+        } else {
+            alert(`Failed to close: ${data.details?.message || data.error}`);
+            if (btn) btn.innerText = 'Close';
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Network error closing position');
+        if (btn) btn.innerText = 'Close';
+    }
+};
 
 // ==========================================
 // CANDLE STITCHING LOGIC

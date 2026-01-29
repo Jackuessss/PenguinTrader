@@ -292,9 +292,9 @@
                     </div>
 
                     <!-- Chart section -->
-                    <div class="flex-1 flex flex-col">
+                    <div id="chart-scroll-wrapper" class="flex-1 flex flex-col overflow-y-hidden">
                         <div
-                            class="flex items-center justify-between p-4 border-b dark:border-gray-700 border-gray-200">
+                            class="flex items-center justify-between p-4 border-b dark:border-gray-700 border-gray-200 flex-shrink-0">
                             <div class="flex items-center space-x-1" id="timeframe-buttons">
                                 <button
                                     class="time-button time-active px-3 py-1 text-sm rounded-full bg-primary/10 dark:bg-primary/20 text-primary">1D</button>
@@ -322,7 +322,49 @@
                                 </button>
                             </div>
                         </div>
-                        <div id="stock-chart" class="flex-1 min-h-[400px] w-full"></div>
+
+                        <!-- Chart -->
+                        <div id="stock-chart" class="flex-1 min-h-[500px] w-full flex-shrink-0 relative"></div>
+
+                        <!-- Open Positions Section -->
+                        <div id="open-positions-section"
+                            class="hidden flex-col bg-white dark:bg-[#0E131B] border-t dark:border-gray-800 border-gray-200">
+                            <!-- Header -->
+                            <div
+                                class="px-6 py-4 flex justify-between items-center border-b dark:border-gray-800 border-gray-100">
+                                <h3 class="text-lg font-bold dark:text-white text-gray-900" id="positions-count-header">
+                                    1 position</h3>
+                            </div>
+
+                            <!-- Summary Box -->
+                            <div class="px-6 py-4">
+                                <div
+                                    class="bg-gray-50 dark:bg-[#161C26] rounded-xl border dark:border-gray-800 border-gray-200 p-4">
+                                    <div class="flex justify-between items-center text-sm mb-2">
+                                        <span
+                                            class="text-gray-500 font-bold uppercase tracking-wider text-xs">Result</span>
+                                        <span class="font-bold text-base" id="positions-total-result">--</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm mb-2">
+                                        <span class="text-gray-500 font-bold uppercase tracking-wider text-xs">Total
+                                            Value</span>
+                                        <span class="font-bold text-white text-base"
+                                            id="positions-total-value">--</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-gray-500 font-bold uppercase tracking-wider text-xs">Total
+                                            Margin</span>
+                                        <span class="font-bold text-white text-base"
+                                            id="positions-total-margin">--</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Positions List -->
+                            <div id="positions-list" class="px-6 pb-6 space-y-3">
+                                <!-- Position Items will be injected here -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -796,7 +838,7 @@
 
 
     <!-- JavaScript -->
-    <script src="{{ url_for('static', filename='script.js') }}?v=13"></script>
+    <script src="{{ url_for('static', filename='script.js') }}?v=15"></script>
     <script>
         // showStockDetail is defined in script.js
 
