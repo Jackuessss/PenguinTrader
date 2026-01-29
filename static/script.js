@@ -1309,6 +1309,21 @@ document.addEventListener('DOMContentLoaded', () => {
         container.addEventListener('mouseup', hideAxis);
         container.addEventListener('mouseleave', hideAxis);
 
+        // Deactivate Buttons on Scroll/Interaction
+        tvChart.timeScale().subscribeVisibleTimeRangeChange(() => {
+            if (window.isProgrammaticScroll) return;
+
+            const btnContainer = document.getElementById('timeframe-buttons');
+            if (btnContainer) {
+                btnContainer.querySelectorAll('button').forEach(b => {
+                    if (b.classList.contains('time-active')) {
+                        b.classList.remove('time-active', 'bg-primary/10', 'dark:bg-primary/20', 'text-primary');
+                        b.classList.add('text-gray-500', 'hover:text-primary');
+                    }
+                });
+            }
+        });
+
         // Initial State: Transparent
         tvChart.applyOptions({
             timeScale: {
@@ -1410,7 +1425,40 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM Content Loaded - initializing...');
     // We do not call initWatchlist() from here because dashboard.html handles it
     // initWatchlist(); 
+
+    setupTimeframeButtons();
 });
+
+function setupTimeframeButtons() {
+    const container = document.getElementById('timeframe-buttons');
+    if (!container) return;
+
+    container.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        // Remove active from all
+        container.querySelectorAll('button').forEach(b => {
+            b.classList.remove('time-active', 'bg-primary/10', 'dark:bg-primary/20', 'text-primary');
+            b.classList.add('text-gray-500', 'hover:text-primary');
+        });
+
+        // Add active to clicked
+        btn.classList.add('time-active', 'bg-primary/10', 'dark:bg-primary/20', 'text-primary');
+        btn.classList.remove('text-gray-500', 'hover:text-primary');
+
+        const timeframe = btn.textContent.trim();
+        if (window.updateChart) {
+            window.isProgrammaticScroll = true; // Use global flag
+            window.updateChart(window.currentSymbol || 'AAPL', timeframe).then(() => {
+                setTimeout(() => { window.isProgrammaticScroll = false; }, 500);
+            });
+        }
+    });
+}
+
+// Global flag to track programmatic updates vs user scroll
+window.isProgrammaticScroll = false;
 
 
 // ==========================================
